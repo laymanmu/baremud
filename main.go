@@ -3,5 +3,10 @@ package main
 import "fmt"
 
 func main() {
-	fmt.Println("ok")
+	server := NewNetServer(":2323")
+	server.Start()
+
+	block := make(chan bool)
+	<- block
+	fmt.Printf("stopped\n")
 }
