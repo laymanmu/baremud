@@ -12,7 +12,19 @@ type NetClient struct {
 	Addr   string
 	Conn   net.Conn
 	Reader *bufio.Reader
-	Writer *bufio.Writer
+	IsDone bool
+}
+
+// NewNetClient creates a network client
+func NewNetClient(conn net.Conn) *NetClient {
+	addr := conn.RemoteAddr().String()
+	reader := bufio.NewReader(conn)
+	return &NetClient{Addr: addr, Conn: conn, Reader: reader, IsDone: false}
+}
+
+// Write will write a message to a client
+func (c *NetClient) Write(message string) {
+	c.Conn.Write([]byte(message))
 }
 
 // NetMessage is a network message
@@ -42,14 +54,21 @@ func (s *NetServer) Start() {
 	go s.handleInbox()
 }
 
+// DropClient will disconnect and remove a client
+func (s *NetServer) DropClient(addr string) {
+	client := s.NetClients[addr]
+	fmt.Printf("dropping client: %s\n", client.Addr)
+	client.Conn.Close()
+	delete(s.NetClients, client.Addr)
+	s.Inbox <- NetMessage{From: client.Addr, Message: "exit"}
+}
+
 // HandleInbox will handle the inbox messages
 func (s *NetServer) handleInbox() {
 	for {
 		msg := <-s.Inbox
 		fmt.Printf("inbox | from: %s | message: %s\n", msg.From, msg.Message)
 		if msg.Message == "exit" {
-			fmt.Printf("removing client: %s\n", msg.From)
-			delete(s.NetClients, msg.From)
 			message := fmt.Sprintf("%s disconnected", msg.From)
 			s.Broadcast(message)
 		}
@@ -60,7 +79,7 @@ func (s *NetServer) handleInbox() {
 func (s *NetServer) Broadcast(message string) {
 	fmt.Printf("broadcast: %s\n", message)
 	for _, client := range s.NetClients {
-		client.Writer.Write([]byte(message))
+		client.Write(message)
 	}
 }
 
@@ -77,26 +96,28 @@ func (s *NetServer) listen() {
 		if err != nil {
 			fmt.Printf("failed to accept client connection: %s\n", err)
 		} else {
-			addr := conn.RemoteAddr().String()
-			reader := bufio.NewReader(conn)
-			writer := bufio.NewWriter(conn)
-			client := NetClient{Addr: addr, Conn: conn, Reader: reader, Writer: writer}
-			s.NetClients[addr] = client
-			fmt.Printf("accepted client connection: %s\n", addr)
-			go s.HandleConnection(&client)
+			client := NewNetClient(conn)
+			s.NetClients[client.Addr] = *client
+			fmt.Printf("accepted client connection: %s\n", client.Addr)
+			go s.handleConnection(client)
 		}
 	}
 }
 
-// HandleConnection handles a new client connection
-func (s *NetServer) HandleConnection(client *NetClient) {
+// handleConnection handles a new client connection
+func (s *NetServer) handleConnection(client *NetClient) {
+	defer client.Conn.Close()
 	for {
 		data, err := client.Reader.ReadString('\n')
 		if err != nil {
-			fmt.Printf("client disconnected: %s\n", client.Addr)
-			s.Inbox <- NetMessage{From: client.Addr, Message: "exit"}
+			s.DropClient(client.Addr)
+			break
 		}
 		message := strings.TrimSpace(string(data))
+		if message == "exit" {
+			s.DropClient(client.Addr)
+			break
+		}
 		s.Inbox <- NetMessage{From: client.Addr, Message: message}
 	}
 }
