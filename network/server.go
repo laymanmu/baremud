@@ -65,6 +65,11 @@ func (s *Server) listen() {
 
 // handleConnection handles a new network client connection
 func (s *Server) handleConnection(client *Client) {
+	err := s.handleLogin(client)
+	if err != nil {
+		s.removeClient(client)
+		return
+	}
 	for {
 		data, err := client.Reader.ReadString('\n')
 		if err != nil {
@@ -78,10 +83,7 @@ func (s *Server) handleConnection(client *Client) {
 			s.Inbox <- NewMessage(client.Addr, message)
 		}
 	}
-	client.Conn.Close()
-	delete(s.Clients, client.Addr)
-	fmt.Printf("removed network client connection: %s\n", client.Addr)
-	s.Inbox <- NewMessage(client.Addr, "exit")
+	s.removeClient(client)
 }
 
 // handleInbox will handle the network inbox messages
@@ -93,8 +95,37 @@ func (s *Server) handleInbox() {
 			message := fmt.Sprintf("%s disconnected", msg.From)
 			s.Broadcast(message)
 		} else {
-			message := fmt.Sprintf("%s says: %s", msg.From, msg.Message)
+			name := s.Clients[msg.From].Player.Name
+			message := fmt.Sprintf("%s says: %s", name, msg.Message)
 			s.Broadcast(message)
 		}
 	}
+}
+
+func (s *Server) handleLogin(client *Client) error {
+	client.Write("what is your name? ")
+	data, err := client.Reader.ReadString('\n')
+	if err != nil {
+		return err
+	}
+	name := strings.TrimSpace(string(data))
+	
+	client.Write("what is your password? ")
+	data, err = client.Reader.ReadString('\n')
+	if err != nil {
+		return err
+	}
+	password := strings.TrimSpace(string(data))
+	fmt.Printf("TODO: authenticate name: %s, password: %s\n", name, password)
+	client.Player.Name = name
+	message := fmt.Sprintf("Welcome, %s", client.Player.Name)
+	s.Send(client.Addr, message)
+	return nil
+}
+
+func (s *Server) removeClient(client *Client) {
+	client.Conn.Close()
+	delete(s.Clients, client.Addr)
+	fmt.Printf("removed network client connection: %s\n", client.Addr)
+	s.Inbox <- NewMessage(client.Addr, "exit")
 }
