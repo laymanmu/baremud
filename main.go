@@ -1,12 +1,12 @@
 package main
 
-import "fmt"
+import (
+	"baremud/network"
+)
 
 func main() {
-	server := NewNetServer(":2323")
+	server := network.NewServer(":2323")
 	server.Start()
-
 	block := make(chan bool)
-	<- block
-	fmt.Printf("stopped\n")
+	<-block
 }
