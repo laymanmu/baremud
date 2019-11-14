@@ -57,7 +57,7 @@ func (s *Server) listen() {
 		} else {
 			client := NewClient(conn)
 			s.Clients[client.Addr] = client
-			fmt.Printf("accepted network client connection: %s\n", client.Addr)
+			fmt.Printf("added network client connection: %s\n", client.Addr)
 			go s.handleConnection(client)
 		}
 	}
@@ -80,6 +80,7 @@ func (s *Server) handleConnection(client *Client) {
 	}
 	client.Conn.Close()
 	delete(s.Clients, client.Addr)
+	fmt.Printf("removed network client connection: %s\n", client.Addr)
 	s.Inbox <- NewMessage(client.Addr, "exit")
 }
 
