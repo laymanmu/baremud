@@ -8,32 +8,23 @@ import (
 
 // Server is a network server
 type Server struct {
-	Clients  map[string]Client
+	Clients  map[string]*Client
+	Inbox    chan *Message
 	Port     string
 	Listener net.Listener
-	Inbox    chan Message
 }
 
-// NewServer creates a new NetServer
+// NewServer creates a new network Server
 func NewServer(port string) *Server {
-	clients := make(map[string]Client)
-	inbox := make(chan Message)
+	clients := make(map[string]*Client)
+	inbox := make(chan *Message)
 	return &Server{Clients: clients, Port: port, Inbox: inbox}
 }
 
-// Start will start the server
+// Start will start the network server
 func (s *Server) Start() {
 	go s.listen()
 	go s.handleInbox()
-}
-
-// DropClient will disconnect and remove a client
-func (s *Server) DropClient(addr string) {
-	client := s.Clients[addr]
-	fmt.Printf("dropping client: %s\n", client.Addr)
-	client.Conn.Close()
-	delete(s.Clients, client.Addr)
-	s.Inbox <- Message{From: client.Addr, Message: "exit"}
 }
 
 // Broadcast will send a message to all network clients
@@ -46,6 +37,7 @@ func (s *Server) Broadcast(message string) {
 
 // Send will send a message to a given network client
 func (s *Server) Send(addr, message string) {
+	message = fmt.Sprintf("%s\n", message)
 	client := s.Clients[addr]
 	client.Write(message)
 }
@@ -57,15 +49,15 @@ func (s *Server) listen() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("listening for connections on port %s\n", s.Port)
+	fmt.Printf("listening for network connections on port %s\n", s.Port)
 	for {
 		conn, err := s.Listener.Accept()
 		if err != nil {
-			fmt.Printf("failed to accept client connection: %s\n", err)
+			fmt.Printf("failed to accept network client connection: %s\n", err)
 		} else {
 			client := NewClient(conn)
-			s.Clients[client.Addr] = *client
-			fmt.Printf("accepted client connection: %s\n", client.Addr)
+			s.Clients[client.Addr] = client
+			fmt.Printf("accepted network client connection: %s\n", client.Addr)
 			go s.handleConnection(client)
 		}
 	}
@@ -73,29 +65,34 @@ func (s *Server) listen() {
 
 // handleConnection handles a new network client connection
 func (s *Server) handleConnection(client *Client) {
-	defer client.Conn.Close()
 	for {
 		data, err := client.Reader.ReadString('\n')
 		if err != nil {
-			s.DropClient(client.Addr)
+			s.Inbox <- NewMessage(client.Addr, "exit")
 			break
 		}
 		message := strings.TrimSpace(string(data))
 		if message == "exit" {
-			s.DropClient(client.Addr)
 			break
+		} else {
+			s.Inbox <- NewMessage(client.Addr, message)
 		}
-		s.Inbox <- Message{From: client.Addr, Message: message}
 	}
+	client.Conn.Close()
+	delete(s.Clients, client.Addr)
+	s.Inbox <- NewMessage(client.Addr, "exit")
 }
 
-// handleInbox will handle the inbox messages
+// handleInbox will handle the network inbox messages
 func (s *Server) handleInbox() {
 	for {
 		msg := <-s.Inbox
-		fmt.Printf("inbox | from: %s | message: %s\n", msg.From, msg.Message)
+		fmt.Printf("network inbox | from: %s | message: %s\n", msg.From, msg.Message)
 		if msg.Message == "exit" {
 			message := fmt.Sprintf("%s disconnected", msg.From)
+			s.Broadcast(message)
+		} else {
+			message := fmt.Sprintf("%s says: %s", msg.From, msg.Message)
 			s.Broadcast(message)
 		}
 	}
