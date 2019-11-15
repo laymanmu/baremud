@@ -16,7 +16,7 @@ type Client struct {
 
 // NewClient creates a network client
 func NewClient(conn net.Conn) *Client {
-	addr := conn.RemoteAddr().String()
+	addr   := conn.RemoteAddr().String()
 	reader := bufio.NewReader(conn)
 	player := data.NewPlayer(addr)
 	return &Client{Addr: addr, Conn: conn, Reader: reader, Player: player}

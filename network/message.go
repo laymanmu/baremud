@@ -4,6 +4,7 @@ package network
 type Message struct {
 	From    string
 	Message string
+	To      string
 }
 
 // NewMessage creates a network message
