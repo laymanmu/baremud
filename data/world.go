@@ -39,3 +39,26 @@ func (w *World) GetStartGate() *Gate {
 	}
 	return nil
 }
+
+// RemovePlayer will remove a player from the world
+func (w *World) RemovePlayer(player *Player) {
+	player.Room.RemovePlayer(player)
+	delete(w.Players, player.Name)
+}
+
+// AddPlayer will add a player to the world
+func (w *World) AddPlayer(player *Player) {
+	w.Players[player.Name] = player
+}
+
+
+
+
+
+
+
+
+
+
+
+

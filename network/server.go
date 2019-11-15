@@ -39,7 +39,7 @@ func (s *Server) Broadcast(message string) {
 
 // Send will send a message to a given network client
 func (s *Server) Send(addr, message string) {
-	message = fmt.Sprintf("%s\n", message)
+	message = fmt.Sprintf("%s\r\n", message)
 	client := s.Clients[addr]
 	client.Write(message)
 }
@@ -84,6 +84,7 @@ func (s *Server) handleConnection(client *Client) {
 			break
 		}
 	}
+	fmt.Printf("DEBUG: finished handleConnection for %s\n", client.Player.Name)
 }
 
 // handleInbox will handle the network inbox messages
@@ -97,7 +98,6 @@ func (s *Server) handleInbox() {
 			s.removeClient(client)
 			message := fmt.Sprintf("%s disconnected", name)
 			s.Broadcast(message)
-			// todo: remove player from the world
 		} else if msg.Message == "look" {
 			message := client.Player.Room.Look()
 			s.Send(client.Addr, message)
@@ -112,7 +112,7 @@ func (s *Server) handleInbox() {
 }
 
 func (s *Server) handleLogin(client *Client) error {
-	client.Write("what is your name? ")
+	client.Write("\r\nwhat is your name? ")
 	data, err := client.Reader.ReadString('\n')
 	if err != nil {
 		return err
@@ -120,7 +120,7 @@ func (s *Server) handleLogin(client *Client) error {
 	name := strings.TrimSpace(string(data))
 	
 	s.Send(client.Addr, fmt.Sprintf("\r\nWelcome, %s\r\n", name))
-	client.Write("what is your password? ")
+	client.Write("\r\nwhat is your password? ")
 	data, err = client.Reader.ReadString('\n')
 	if err != nil {
 		return err
@@ -130,15 +130,16 @@ func (s *Server) handleLogin(client *Client) error {
 
 	client.Player.Name = name
 	client.Player.EnterGate(s.World.GetStartGate())
+	s.World.AddPlayer(client.Player)
 	roomMessage := client.Player.Room.Look()
 	client.Write(fmt.Sprintf("\r\n%s\r\n", roomMessage))
-
+	fmt.Printf("DEBUG: finished handleLogin for %s\n", name)
 	return nil
 }
 
 func (s *Server) removeClient(client *Client) {
+	s.World.RemovePlayer(client.Player)
 	client.Conn.Close()
 	delete(s.Clients, client.Addr)
 	fmt.Printf("removed network client connection: %s\n", client.Addr)
-	s.Inbox <- NewMessage(client.Addr, "exit")
 }
