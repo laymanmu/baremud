@@ -133,7 +133,6 @@ func (s *Server) handleLogin(client *Client) error {
 	s.World.AddPlayer(client.Player)
 	roomMessage := client.Player.Room.Look()
 	client.Write(fmt.Sprintf("\r\n%s\r\n", roomMessage))
-	fmt.Printf("DEBUG: finished handleLogin for %s\n", name)
 	return nil
 }
 
