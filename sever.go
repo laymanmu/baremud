@@ -12,13 +12,13 @@ type Server struct {
 	ID        string
 	port      string
 	clients   map[string]*Client
-	messages  chan<- interface{}
+	messages  chan<- *Message
 	listener  net.Listener
 	startRoom *Room
 }
 
 // NewServer creates a server
-func NewServer(port string, messages chan<- interface{}, startRoom *Room) *Server {
+func NewServer(port string, messages chan<- *Message, startRoom *Room) *Server {
 	ID := uuid.New().String()
 	clients := make(map[string]*Client)
 	return &Server{ID, port, clients, messages, nil, startRoom}
@@ -42,7 +42,7 @@ func (s *Server) listen() {
 		if err != nil {
 			fmt.Printf("s | client accept failed: %+v\n", err)
 		} else {
-			messages := make(chan interface{})
+			messages := make(chan *Message)
 			client := NewClient(conn, messages, s.startRoom)
 			s.clients[client.ID] = client
 			fmt.Printf("s | added client: %s\n", client.ID)
@@ -52,17 +52,26 @@ func (s *Server) listen() {
 }
 
 // handleClientMessages handles messaging from one client
-func (s *Server) handleClientMessages(client *Client, clientMessages <-chan interface{}) {
+func (s *Server) handleClientMessages(client *Client, messages <-chan *Message) {
 	for {
-		m := <-clientMessages
-		switch message := m.(type) {
-		case *ErrorMessage:
+		message := <-messages
+		fmt.Printf("s | got msg: %+v\n", message)
+		switch message.Type {
+		case ErrorMessage:
 			message.Client.Write(message.Message)
-		case *ClientClosedMessage:
+			fmt.Printf("s | handled msg: %+v\n", message)
+		case ClientStoppedMessage:
 			delete(s.clients, client.ID)
 			s.messages <- message
 		default:
 			s.messages <- message
 		}
+	}
+}
+
+// broadcast will send a message to all clients:
+func (s *Server) broadcast(message string) {
+	for _, client := range s.clients {
+		client.Write(message)
 	}
 }

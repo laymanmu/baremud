@@ -17,11 +17,11 @@ type Client struct {
 	room     *Room
 	conn     net.Conn
 	reader   *bufio.Reader
-	messages chan<- interface{}
+	messages chan<- *Message
 }
 
 // NewClient creates a client
-func NewClient(conn net.Conn, messages chan<- interface{}, room *Room) *Client {
+func NewClient(conn net.Conn, messages chan<- *Message, room *Room) *Client {
 	ID := uuid.New().String()
 	Name := ""
 	reader := bufio.NewReader(conn)
@@ -61,13 +61,13 @@ func (c *Client) handleLogin() error {
 	}
 	c.Name = strings.TrimSpace(string(data))
 	c.Write(fmt.Sprintf("%s, %s", au.Framed("Welcome"), au.Bold(c.Name)))
-	c.messages <- NewClientLoggedOnMessage(c)
+	c.messages <- NewClientStartedMessage(c)
 	return nil
 }
 
 func (c *Client) closeConnection() {
 	c.conn.Close()
-	c.messages <- NewClientClosedMessage(c)
+	c.messages <- NewClientStoppedMessage(c)
 }
 
 // handleConnection handles a new network client connection
@@ -101,7 +101,7 @@ func (c *Client) handleConnection() {
 		case "look":
 			c.messages <- NewClientLookMessage(c, args)
 		case "enter":
-			c.messages <- NewClientEnterMessage(c, args)
+			c.messages <- NewClientEnterMessage(c, args[0])
 		case "say":
 			msg := strings.Join(args, " ")
 			c.messages <- NewClientChatMessage(c, msg)

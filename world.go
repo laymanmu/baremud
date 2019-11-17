@@ -9,7 +9,7 @@ type World struct {
 	StartRoom  *Room
 	server     *Server
 	rooms      map[string]*Room
-	fromServer chan interface{}
+	fromServer chan *Message
 }
 
 // NewWorld creates a world
@@ -27,7 +27,7 @@ func NewWorld() *World {
 
 	startRoom := cell
 
-	fromServer := make(chan interface{})
+	fromServer := make(chan *Message)
 	server := NewServer(":2323", fromServer, startRoom)
 
 	return &World{StartRoom: startRoom, server: server, rooms: rooms, fromServer: fromServer}
@@ -36,20 +36,33 @@ func NewWorld() *World {
 // Start starts a world
 func (w *World) Start() {
 	w.server.Start()
+	PrintMessageTypeValues()
 	go w.handleServerMessages(w.fromServer)
 }
 
 // handleServerMessages handles messages from the server
-func (w *World) handleServerMessages(messages <-chan interface{}) {
+func (w *World) handleServerMessages(messages <-chan *Message) {
 	for {
-		m := <-messages
-		switch message := m.(type) {
-		case *ClientLookMessage:
+		message := <-messages
+		fmt.Printf("w | got msg: %+v\n", message)
+		switch message.Type {
+		case ClientLookMessage:
 			message.Client.Write(message.Client.room.Look())
-		case *ClientEnterMessage:
-			message.Client.EnterGate(message.Args[0])
+			fmt.Printf("w | handled msg: %+v\n", message)
+		case ClientEnterMessage:
+			message.Client.EnterGate(message.Message)
+			fmt.Printf("w | handled msg: %+v\n", message)
+		case ClientChatMessage:
+			message.Client.room.Broadcast(message.Message)
+			fmt.Printf("w | handled msg: %+v\n", message)
+		case ClientStartedMessage:
+			w.server.broadcast(fmt.Sprintf("%s joined", message.Client.Name))
+			fmt.Printf("w | handled msg: %+v\n", message)
+		case ClientStoppedMessage:
+			w.server.broadcast(fmt.Sprintf("%s left", message.Client.Name))
+			fmt.Printf("w | handled msg: %+v\n", message)
 		default:
-			fmt.Printf("w | unhandled %T | %+v\n", message, message)
+			fmt.Printf("w | unhandled msg | %+v\n", message)
 		}
 	}
 }

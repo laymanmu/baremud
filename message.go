@@ -1,73 +1,101 @@
 package main
 
-import "github.com/google/uuid"
+import (
+	"fmt"
 
-// ErrorMessage is a message
-type ErrorMessage struct {
+	"github.com/google/uuid"
+)
+
+// MessageType is a type of message
+type MessageType int
+
+// message types:
+const (
+	ErrorMessage         MessageType = iota
+	ClientStartedMessage MessageType = iota
+	ClientStoppedMessage MessageType = iota
+	ClientChatMessage    MessageType = iota
+	ClientLookMessage    MessageType = iota
+	ClientEnterMessage   MessageType = iota
+)
+
+// PrintMessageTypeValues will print message type values
+func PrintMessageTypeValues() {
+	fmt.Printf("MessageType values:\n")
+	fmt.Printf("  ErrorMessage:         %v\n", ErrorMessage)
+	fmt.Printf("  ClientStartedMessage: %v\n", ClientStartedMessage)
+	fmt.Printf("  ClientStoppedMessage: %v\n", ClientStoppedMessage)
+	fmt.Printf("  ClientChatMessage:    %v\n", ClientChatMessage)
+	fmt.Printf("  ClientLookMessage:    %v\n", ClientLookMessage)
+	fmt.Printf("  ClientEnterMessage:   %v\n", ClientEnterMessage)
+}
+
+// GetMessageTypeName returns a message type name
+func GetMessageTypeName(msgType MessageType) string {
+	switch msgType {
+	case ErrorMessage:
+		return "ErrorMessage"
+	case ClientStartedMessage:
+		return "ClientStartedMessage"
+	case ClientStoppedMessage:
+		return "ClientStoppedMessage"
+	case ClientChatMessage:
+		return "ClientChatMessage"
+	case ClientLookMessage:
+		return "ClientLookMessage"
+	case ClientEnterMessage:
+		return "ClientEnterMessage"
+	default:
+		return fmt.Sprintf("Unknown MessageType: %v", msgType)
+	}
+}
+
+// Message is a message
+type Message struct {
 	ID      string
+	Type    MessageType
+	Name    string
 	Client  *Client
 	Message string
+	Args    []string
 }
 
-// ClientLoggedOnMessage is a message
-type ClientLoggedOnMessage struct {
-	ID     string
-	Client *Client
-}
-
-// ClientClosedMessage is a message
-type ClientClosedMessage struct {
-	ID     string
-	Client *Client
-}
-
-// ClientLookMessage is a message
-type ClientLookMessage struct {
-	ID     string
-	Client *Client
-	Args   []string
-}
-
-// ClientChatMessage is a message
-type ClientChatMessage struct {
-	ID      string
-	Client  *Client
-	Message string
-}
-
-// ClientEnterMessage is a message
-type ClientEnterMessage struct {
-	ID     string
-	Client *Client
-	Args   []string
+// NewMessage creates a message
+func NewMessage(msgType MessageType, client *Client, message string, args []string) *Message {
+	ID := uuid.New().String()
+	if args == nil {
+		args = []string{}
+	}
+	Name := GetMessageTypeName(msgType)
+	return &Message{ID, msgType, Name, client, message, args}
 }
 
 // NewErrorMessage creates a message
-func NewErrorMessage(client *Client, message string) *ErrorMessage {
-	return &ErrorMessage{ID: uuid.New().String(), Client: client, Message: message}
+func NewErrorMessage(client *Client, message string) *Message {
+	return NewMessage(ErrorMessage, client, message, nil)
 }
 
-// NewClientLoggedOnMessage creates a message
-func NewClientLoggedOnMessage(client *Client) *ClientLoggedOnMessage {
-	return &ClientLoggedOnMessage{ID: uuid.New().String(), Client: client}
+// NewClientStartedMessage creates a message
+func NewClientStartedMessage(client *Client) *Message {
+	return NewMessage(ClientStartedMessage, client, "", nil)
 }
 
-// NewClientClosedMessage creates a message
-func NewClientClosedMessage(client *Client) *ClientClosedMessage {
-	return &ClientClosedMessage{ID: uuid.New().String(), Client: client}
+// NewClientStoppedMessage creates a message
+func NewClientStoppedMessage(client *Client) *Message {
+	return NewMessage(ClientStoppedMessage, client, "", nil)
 }
 
 // NewClientLookMessage creates a message
-func NewClientLookMessage(client *Client, args []string) *ClientLookMessage {
-	return &ClientLookMessage{ID: uuid.New().String(), Client: client, Args: args}
+func NewClientLookMessage(client *Client, args []string) *Message {
+	return NewMessage(ClientLookMessage, client, "", args)
 }
 
 // NewClientEnterMessage creates a message
-func NewClientEnterMessage(client *Client, args []string) *ClientEnterMessage {
-	return &ClientEnterMessage{ID: uuid.New().String(), Client: client, Args: args}
+func NewClientEnterMessage(client *Client, gateName string) *Message {
+	return NewMessage(ClientEnterMessage, client, gateName, nil)
 }
 
 // NewClientChatMessage creates a message
-func NewClientChatMessage(client *Client, message string) *ClientChatMessage {
-	return &ClientChatMessage{ID: uuid.New().String(), Client: client, Message: message}
+func NewClientChatMessage(client *Client, message string) *Message {
+	return NewMessage(ClientChatMessage, client, message, nil)
 }
