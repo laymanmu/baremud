@@ -18,16 +18,21 @@ type World struct {
 func NewWorld() *World {
 	rooms := make(map[string]*Room)
 
-	cell := NewRoom("Cell", "A small cell")
-	hall := NewRoom("Hall", "A dark hall")
+	name := fmt.Sprintf("%s Room", au.Red("Red"))
+	desc := fmt.Sprintf("A small, %s room", au.Red("red"))
+	room := NewRoom(name, desc)
 
-	cell.Gates["door"] = hall
-	hall.Gates["door"] = cell
+	name = fmt.Sprintf("%s Hall", au.Green("Green"))
+	desc = fmt.Sprintf("A dark, %s hall", au.Green("green"))
+	hall := NewRoom(name, desc)
 
-	rooms[cell.ID] = cell
+	room.Gates["door"] = hall
+	hall.Gates["door"] = room
+
+	rooms[room.ID] = room
 	rooms[hall.ID] = hall
 
-	startRoom := cell
+	startRoom := room
 
 	fromServer := make(chan *Message)
 	server := NewServer(":2323", fromServer, startRoom)

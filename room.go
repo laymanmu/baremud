@@ -36,7 +36,7 @@ func (r *Room) Look() string {
 	}
 	var buf bytes.Buffer
 
-	buf.WriteString(fmt.Sprintf("%s %s %s\r\n", au.Red("-="), au.Brown(r.Name), au.Red("=-")))
+	buf.WriteString(fmt.Sprintf("%s %s %s\r\n", au.BrightBlack("-="), au.BrightYellow(r.Name), au.BrightBlack("=-")))
 	buf.WriteString(fmt.Sprintf("%s\r\n", r.Desc))
 	buf.WriteString(fmt.Sprintf("Gates:   %s\r\n", strings.Join(gates, ", ")))
 	buf.WriteString(fmt.Sprintf("Clients: %s\r\n", strings.Join(clients, ", ")))
