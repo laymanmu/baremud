@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -26,11 +27,19 @@ func NewRoom(name, desc string) *Room {
 
 // Look describes a room
 func (r *Room) Look() string {
+	var gates []string
+	var clients []string
+	for name := range r.Gates {
+		gates = append(gates, name)
+	}
+	for _, c := range r.Clients {
+		clients = append(clients, c.Name)
+	}
 	var buf bytes.Buffer
 	buf.WriteString(fmt.Sprintf("-= %s =-\r\n", r.Name))
 	buf.WriteString(fmt.Sprintf("%s\r\n", r.Desc))
-	buf.WriteString(fmt.Sprintf("Gates:   %v\r\n", r.Gates))
-	buf.WriteString(fmt.Sprintf("Clients: %v\r\n", r.Clients))
+	buf.WriteString(fmt.Sprintf("Gates:   %s\r\n", strings.Join(gates, ", ")))
+	buf.WriteString(fmt.Sprintf("Clients: %s\r\n", strings.Join(clients, ", ")))
 	return buf.String()
 }
 

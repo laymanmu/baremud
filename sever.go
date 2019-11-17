@@ -71,14 +71,8 @@ func (s *Server) handleConnection(client *Client, clientMessages <-chan interfac
 			msg := fmt.Sprintf("%s has left", client.Name)
 			s.broadcast(msg, nil)
 			s.messages <- message
-
-		case *ClientLookMessage:
-			s.messages <- message
-		case *ClientEnterMessage:
-			s.messages <- message
-
 		default:
-			fmt.Printf("s | client %s sent unhandled %T msg: %+v\n", client.ID, message, message)
+			s.messages <- message
 		}
 	}
 }

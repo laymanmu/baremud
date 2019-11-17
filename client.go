@@ -22,9 +22,10 @@ type Client struct {
 // NewClient creates a client
 func NewClient(conn net.Conn, messages chan<- interface{}, room *Room) *Client {
 	ID := uuid.New().String()
-	Name := ID
+	Name := ""
 	reader := bufio.NewReader(conn)
 	client := &Client{ID, Name, room, conn, reader, messages}
+	client.room.Clients[client.ID] = client
 	go client.handleConnection()
 	return client
 }
@@ -32,14 +33,15 @@ func NewClient(conn net.Conn, messages chan<- interface{}, room *Room) *Client {
 // EnterGate will enter a gate
 func (c *Client) EnterGate(name string) {
 	if newRoom, ok := c.room.Gates[name]; ok {
-		for _, client := range c.room.Clients {
-			client.Write(fmt.Sprintf("%s left the room", client.Name))
-		}
 		delete(c.room.Clients, c.ID)
-		c.room = newRoom
 		for _, client := range c.room.Clients {
-			client.Write(fmt.Sprintf("%s entered the room", client.Name))
+			client.Write(fmt.Sprintf("%s left the room", c.Name))
 		}
+		for _, client := range newRoom.Clients {
+			client.Write(fmt.Sprintf("%s entered the room", c.Name))
+		}
+		c.room = newRoom
+		c.room.Clients[c.ID] = c
 		c.Write(c.room.Look())
 	}
 }
