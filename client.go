@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	. "github.com/logrusorgru/aurora"
 )
 
 // Client is a client
@@ -35,10 +36,10 @@ func (c *Client) EnterGate(name string) {
 	if newRoom, ok := c.room.Gates[name]; ok {
 		delete(c.room.Clients, c.ID)
 		for _, client := range c.room.Clients {
-			client.Write(fmt.Sprintf("%s left the room", c.Name))
+			client.Write(fmt.Sprintf("%s left the room", Green(c.Name)))
 		}
 		for _, client := range newRoom.Clients {
-			client.Write(fmt.Sprintf("%s entered the room", c.Name))
+			client.Write(fmt.Sprintf("%s entered the room", Green(c.Name)))
 		}
 		c.room = newRoom
 		c.room.Clients[c.ID] = c
@@ -53,13 +54,13 @@ func (c *Client) Write(message string) {
 
 // handleLogin handles the client login
 func (c *Client) handleLogin() error {
-	c.Write("what is your name?")
+	c.Write(fmt.Sprintf("what is your %s?", Magenta("name")))
 	data, err := c.reader.ReadString('\n')
 	if err != nil {
 		return err
 	}
 	c.Name = strings.TrimSpace(string(data))
-	c.Write(fmt.Sprintf("Welcome, %s", c.Name))
+	c.Write(fmt.Sprintf("%s, %s", Framed("Welcome"), Bold(c.Name)))
 	c.messages <- NewClientLoggedOnMessage(c)
 	return nil
 }

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	au "github.com/logrusorgru/aurora"
 )
 
 // Room is a room
@@ -30,13 +31,14 @@ func (r *Room) Look() string {
 	var gates []string
 	var clients []string
 	for name := range r.Gates {
-		gates = append(gates, name)
+		gates = append(gates, fmt.Sprintf("%s", au.Blue(name)))
 	}
 	for _, c := range r.Clients {
-		clients = append(clients, c.Name)
+		clients = append(clients, fmt.Sprintf("%s", au.Green(c.Name)))
 	}
 	var buf bytes.Buffer
-	buf.WriteString(fmt.Sprintf("-= %s =-\r\n", r.Name))
+
+	buf.WriteString(fmt.Sprintf("%s %s %s\r\n", au.Red("-="), au.Brown(r.Name), au.Red("=-")))
 	buf.WriteString(fmt.Sprintf("%s\r\n", r.Desc))
 	buf.WriteString(fmt.Sprintf("Gates:   %s\r\n", strings.Join(gates, ", ")))
 	buf.WriteString(fmt.Sprintf("Clients: %s\r\n", strings.Join(clients, ", ")))

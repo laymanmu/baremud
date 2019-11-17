@@ -45,45 +45,24 @@ func (s *Server) listen() {
 			messages := make(chan interface{})
 			client := NewClient(conn, messages, s.startRoom)
 			s.clients[client.ID] = client
-			fmt.Printf("s | added client: %+v\n", client)
-			go s.handleConnection(client, messages)
+			fmt.Printf("s | added client: %s\n", client.ID)
+			go s.handleClientMessages(client, messages)
 		}
 	}
 }
 
-// handleConnection handles messaging from one client
-func (s *Server) handleConnection(client *Client, clientMessages <-chan interface{}) {
+// handleClientMessages handles messaging from one client
+func (s *Server) handleClientMessages(client *Client, clientMessages <-chan interface{}) {
 	for {
 		m := <-clientMessages
 		switch message := m.(type) {
 		case *ErrorMessage:
-			fmt.Printf("s | client %s error: %+v\n", client.ID, message)
 			message.Client.Write(message.Message)
-		case *ClientChatMessage:
-			msg := fmt.Sprintf("%s says: %s", message.Client.Name, message.Message)
-			s.broadcast(msg, nil)
-		case *ClientLoggedOnMessage:
-			msg := fmt.Sprintf("%s has joined", client.Name)
-			s.broadcast(msg, nil)
-			s.messages <- message
 		case *ClientClosedMessage:
 			delete(s.clients, client.ID)
-			msg := fmt.Sprintf("%s has left", client.Name)
-			s.broadcast(msg, nil)
 			s.messages <- message
 		default:
 			s.messages <- message
 		}
-	}
-}
-
-// broadcast will write a message to a list of clients
-func (s *Server) broadcast(message string, clients map[string]*Client) {
-	fmt.Printf("s | broadcasting: %s\n", message)
-	if clients == nil {
-		clients = s.clients
-	}
-	for _, client := range clients {
-		client.Write(message)
 	}
 }
