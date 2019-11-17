@@ -48,6 +48,8 @@ func (w *World) Start() {
 
 // handleServerMessages handles messages from the server
 func (w *World) handleServerMessages(messages <-chan *Message) {
+	chatPrefix := fmt.Sprintf("%s", au.BrightBlue("[chat]"))
+	serverPrefix := fmt.Sprintf("%s", au.BrightRed("[server]"))
 	for {
 		message := <-messages
 		status := "handled"
@@ -57,12 +59,12 @@ func (w *World) handleServerMessages(messages <-chan *Message) {
 		case ClientEnterMessage:
 			message.Client.EnterGate(message.Message)
 		case ClientChatMessage:
-			msg := fmt.Sprintf("%s says: %s", au.Magenta(message.Client.Name), au.Cyan(message.Message))
+			msg := fmt.Sprintf("%s %s: %s", chatPrefix, au.BrightGreen(message.Client.Name), au.Cyan(message.Message))
 			message.Client.room.Broadcast(msg)
 		case ClientStartedMessage:
-			w.server.broadcast(fmt.Sprintf("%s joined", message.Client.Name))
+			w.server.broadcast(fmt.Sprintf("%s %s joined", serverPrefix, message.Client.Name))
 		case ClientStoppedMessage:
-			w.server.broadcast(fmt.Sprintf("%s left", message.Client.Name))
+			w.server.broadcast(fmt.Sprintf("%s %s left", serverPrefix, message.Client.Name))
 		default:
 			status = "unhandled"
 		}

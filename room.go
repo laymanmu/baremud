@@ -35,11 +35,14 @@ func (r *Room) Look() string {
 		clients = append(clients, fmt.Sprintf("%s", au.Green(c.Name)))
 	}
 	var buf bytes.Buffer
-
-	buf.WriteString(fmt.Sprintf("%s %s %s\r\n", au.BrightBlack("-="), au.BrightYellow(r.Name), au.BrightBlack("=-")))
-	buf.WriteString(fmt.Sprintf("%s\r\n", r.Desc))
-	buf.WriteString(fmt.Sprintf("Gates:   %s\r\n", strings.Join(gates, ", ")))
-	buf.WriteString(fmt.Sprintf("Clients: %s\r\n", strings.Join(clients, ", ")))
+	handle := fmt.Sprintf("%s%s%s", au.BrightBlack("o"), au.BrightBlack("====="), au.BrightBlack("]"))
+	blade := fmt.Sprintf("%s", au.BrightWhite("//////////////"))
+	tip := au.BrightRed("//////>")
+	sword := fmt.Sprintf("%s%s%s", handle, blade, tip)
+	buf.WriteString(fmt.Sprintf("%s %s %s %s\r\n", au.BrightBlack("-=["), au.BrightYellow(r.Name), au.BrightBlack("]=-"), sword))
+	buf.WriteString(fmt.Sprintf("%s\r\n", au.White(r.Desc)))
+	buf.WriteString(fmt.Sprintf("%s %s%s\r\n", au.BrightBlack("[gates:"), strings.Join(gates, ", "), au.BrightBlack("]")))
+	buf.WriteString(fmt.Sprintf("%s %s%s\r\n", au.BrightBlack("[clients:"), strings.Join(clients, ", "), au.BrightBlack("]")))
 	return buf.String()
 }
 
