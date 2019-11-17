@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+
+	au "github.com/logrusorgru/aurora"
 )
 
 // World is a world
@@ -36,7 +38,6 @@ func NewWorld() *World {
 // Start starts a world
 func (w *World) Start() {
 	w.server.Start()
-	PrintMessageTypeValues()
 	go w.handleServerMessages(w.fromServer)
 }
 
@@ -44,25 +45,22 @@ func (w *World) Start() {
 func (w *World) handleServerMessages(messages <-chan *Message) {
 	for {
 		message := <-messages
-		fmt.Printf("w | got msg: %+v\n", message)
+		status := "handled"
 		switch message.Type {
 		case ClientLookMessage:
 			message.Client.Write(message.Client.room.Look())
-			fmt.Printf("w | handled msg: %+v\n", message)
 		case ClientEnterMessage:
 			message.Client.EnterGate(message.Message)
-			fmt.Printf("w | handled msg: %+v\n", message)
 		case ClientChatMessage:
-			message.Client.room.Broadcast(message.Message)
-			fmt.Printf("w | handled msg: %+v\n", message)
+			msg := fmt.Sprintf("%s says: %s", au.Magenta(message.Client.Name), au.Cyan(message.Message))
+			message.Client.room.Broadcast(msg)
 		case ClientStartedMessage:
 			w.server.broadcast(fmt.Sprintf("%s joined", message.Client.Name))
-			fmt.Printf("w | handled msg: %+v\n", message)
 		case ClientStoppedMessage:
 			w.server.broadcast(fmt.Sprintf("%s left", message.Client.Name))
-			fmt.Printf("w | handled msg: %+v\n", message)
 		default:
-			fmt.Printf("w | unhandled msg | %+v\n", message)
+			status = "unhandled"
 		}
+		fmt.Printf("w | %s %s\n", status, message.String())
 	}
 }

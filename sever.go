@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"net"
-
-	"github.com/google/uuid"
 )
 
 // Server is a server
@@ -19,9 +17,8 @@ type Server struct {
 
 // NewServer creates a server
 func NewServer(port string, messages chan<- *Message, startRoom *Room) *Server {
-	ID := uuid.New().String()
 	clients := make(map[string]*Client)
-	return &Server{ID, port, clients, messages, nil, startRoom}
+	return &Server{GetID(), port, clients, messages, nil, startRoom}
 }
 
 // Start starts the server
@@ -55,16 +52,19 @@ func (s *Server) listen() {
 func (s *Server) handleClientMessages(client *Client, messages <-chan *Message) {
 	for {
 		message := <-messages
-		fmt.Printf("s | got msg: %+v\n", message)
+		handled := true
 		switch message.Type {
 		case ErrorMessage:
 			message.Client.Write(message.Message)
-			fmt.Printf("s | handled msg: %+v\n", message)
 		case ClientStoppedMessage:
 			delete(s.clients, client.ID)
 			s.messages <- message
 		default:
 			s.messages <- message
+			handled = false
+		}
+		if handled {
+			fmt.Printf("s | handled %s\n", message.String())
 		}
 	}
 }

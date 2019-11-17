@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/uuid"
 	au "github.com/logrusorgru/aurora"
 )
 
@@ -20,10 +19,9 @@ type Room struct {
 
 // NewRoom creates a room
 func NewRoom(name, desc string) *Room {
-	id := uuid.New().String()
 	gates := make(map[string]*Room)
 	clients := make(map[string]*Client)
-	return &Room{ID: id, Name: name, Desc: desc, Gates: gates, Clients: clients}
+	return &Room{GetID(), name, desc, gates, clients}
 }
 
 // Look describes a room
