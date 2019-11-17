@@ -13,6 +13,8 @@ import (
 type Client struct {
 	ID       string
 	Name     string
+	Health   int
+	InCombat bool
 	room     *Room
 	conn     net.Conn
 	reader   *bufio.Reader
@@ -21,9 +23,11 @@ type Client struct {
 
 // NewClient creates a client
 func NewClient(conn net.Conn, messages chan<- *Message, room *Room) *Client {
-	Name := ""
+	name := ""
+	health := 100
+	inCombat := false
 	reader := bufio.NewReader(conn)
-	client := &Client{GetID(), Name, room, conn, reader, messages}
+	client := &Client{GetID(), name, health, inCombat, room, conn, reader, messages}
 	client.room.Clients[client.ID] = client
 	go client.handleConnection()
 	return client
@@ -41,8 +45,24 @@ func (c *Client) EnterGate(name string) {
 		}
 		c.room = newRoom
 		c.room.Clients[c.ID] = c
-		c.Write(c.room.Look())
+		c.Write(c.room.Look(c.Prompt()))
 	}
+}
+
+// Prompt sends the prompt to the client
+func (c *Client) Prompt() string {
+	left := au.BrightBlack("-=[")
+	right := au.BrightBlack("]=-")
+	div := au.BrightBlack("|")
+	hp := au.Red(fmt.Sprintf("%v", c.Health))
+	alert := au.Green("ok")
+	if c.InCombat {
+		alert = au.Red("combat")
+	}
+	if c.Health < 100 {
+		return fmt.Sprintf("%s%s%s%s%s", left, hp, div, alert, right)
+	}
+	return fmt.Sprintf("%s%s%s", left, alert, right)
 }
 
 // Write writes a message to the client
@@ -77,7 +97,7 @@ func (c *Client) handleConnection() {
 		return
 	}
 
-	c.Write(c.room.Look())
+	c.Write(c.room.Look(c.Prompt()))
 
 	for {
 		data, err := c.reader.ReadString('\n')
@@ -111,6 +131,8 @@ func (c *Client) handleConnection() {
 		case "say":
 			msg := strings.Join(args, " ")
 			c.messages <- NewMessage(ClientChatMessage, c, msg, args)
+		case "debug":
+			c.InCombat = !c.InCombat
 		default:
 			msg := fmt.Sprintf("unknown command:%s, args:%v", command, args)
 			c.messages <- NewMessage(ErrorMessage, c, msg, args)

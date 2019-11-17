@@ -55,7 +55,7 @@ func (w *World) handleServerMessages(messages <-chan *Message) {
 		status := "handled"
 		switch message.Type {
 		case ClientLookMessage:
-			message.Client.Write(message.Client.room.Look())
+			message.Client.Write(message.Client.room.Look(message.Client.Prompt()))
 		case ClientEnterMessage:
 			message.Client.EnterGate(message.Message)
 		case ClientChatMessage:
