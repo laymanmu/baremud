@@ -91,51 +91,78 @@ func (c *Client) closeConnection(reason string) {
 
 // handleConnection handles a new network client connection
 func (c *Client) handleConnection() {
+	// login and exit if fails:
 	err := c.handleLogin()
 	if err != nil {
 		c.closeConnection("login failed")
 		return
 	}
 
+	// display room once after succesful login:
 	c.Write(c.room.Look(c.Prompt()))
 
 	for {
+		// wait for a message:
 		data, err := c.reader.ReadString('\n')
 		if err != nil {
 			c.closeConnection("read failed")
 			return
 		}
 
+		// split the message up into fields:
 		message := strings.TrimSpace(string(data))
 		fields := strings.Fields(message)
+
+		// nothing to do if empty:
 		if len(fields) < 1 {
 			continue
 		}
+
+		// split the fields into 3 parts:
+		// * command (first keyword)
+		// * args    (list of all keywords after command)
+		// * target  (second keyword or empty string if not exists)
+		//   - target is syntactic sugar for commands that require/use 2nd parm
+		// examples:
+		// "open door" = (command:open, args:[door], target:door)
+		// "look"      = (command:look, args:[],     target:"")
 		command := fields[0]
 		args := []string{}
 		target := ""
 
+		// only set args and target if there are more keywords:
 		if len(fields) > 1 {
 			args = fields[1:]
 			target = args[0]
 		}
 
-		switch command {
-		case "exit":
+		// handle the command and exit if appropriate:
+		isExiting := c.handleCommand(command, target, args)
+		if isExiting {
 			c.closeConnection("client exited")
 			return
-		case "look":
-			c.messages <- NewMessage(ClientLookMessage, c, target, args)
-		case "enter":
-			c.messages <- NewMessage(ClientEnterMessage, c, target, args)
-		case "say":
-			msg := strings.Join(args, " ")
-			c.messages <- NewMessage(ClientChatMessage, c, msg, args)
-		case "debug":
-			c.InCombat = !c.InCombat
-		default:
-			msg := fmt.Sprintf("unknown command:%s, args:%v", command, args)
-			c.messages <- NewMessage(ErrorMessage, c, msg, args)
 		}
 	}
+}
+
+// handleCommand will handle any command entered by a client
+func (c *Client) handleCommand(command, target string, args []string) bool {
+	isExiting := false
+	switch command {
+	case "exit":
+		isExiting = true
+	case "look":
+		c.messages <- NewMessage(ClientLookMessage, c, target, args)
+	case "enter":
+		c.messages <- NewMessage(ClientEnterMessage, c, target, args)
+	case "say":
+		msg := strings.Join(args, " ")
+		c.messages <- NewMessage(ClientChatMessage, c, msg, args)
+	case "debug":
+		c.InCombat = !c.InCombat
+	default:
+		msg := fmt.Sprintf("unknown command:%s, args:%v", command, args)
+		c.messages <- NewMessage(ErrorMessage, c, msg, args)
+	}
+	return isExiting
 }
