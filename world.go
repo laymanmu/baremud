@@ -9,6 +9,7 @@ import (
 // World is a world
 type World struct {
 	StartRoom  *Room
+	commander  *Commander
 	server     *Server
 	rooms      map[string]*Room
 	fromServer chan *Message
@@ -37,7 +38,9 @@ func NewWorld() *World {
 	fromServer := make(chan *Message)
 	server := NewServer(":2323", fromServer, startRoom)
 
-	return &World{StartRoom: startRoom, server: server, rooms: rooms, fromServer: fromServer}
+	commander := NewCommander()
+
+	return &World{startRoom, commander, server, rooms, fromServer}
 }
 
 // Start starts a world
@@ -54,6 +57,8 @@ func (w *World) handleServerMessages(messages <-chan *Message) {
 		message := <-messages
 		status := "handled"
 		switch message.Type {
+		case HelpMessage:
+			message.Client.Write(w.commander.Help(message.Message))
 		case ClientLookMessage:
 			message.Client.Write(message.Client.room.Look(message.Client.Prompt()))
 		case ClientEnterMessage:
@@ -65,6 +70,14 @@ func (w *World) handleServerMessages(messages <-chan *Message) {
 			w.server.broadcast(fmt.Sprintf("%s %s joined", serverPrefix, message.Client.Name))
 		case ClientStoppedMessage:
 			w.server.broadcast(fmt.Sprintf("%s %s left", serverPrefix, message.Client.Name))
+		case ClientMakeRoomMessage:
+			name := message.Args[0]
+			desc := message.Args[1]
+			gate := message.Args[2]
+			room := NewRoom(name, desc)
+			message.Client.room.Gates[gate] = room
+			room.Gates[gate] = message.Client.room
+			message.Client.Write(message.Client.room.Look(message.Client.Prompt()))
 		default:
 			status = "unhandled"
 		}

@@ -9,12 +9,14 @@ type MessageType int
 
 // message types:
 const (
-	ErrorMessage         MessageType = iota
-	ClientStartedMessage MessageType = iota
-	ClientStoppedMessage MessageType = iota
-	ClientChatMessage    MessageType = iota
-	ClientLookMessage    MessageType = iota
-	ClientEnterMessage   MessageType = iota
+	ErrorMessage          MessageType = iota
+	HelpMessage           MessageType = iota
+	ClientStartedMessage  MessageType = iota
+	ClientStoppedMessage  MessageType = iota
+	ClientChatMessage     MessageType = iota
+	ClientLookMessage     MessageType = iota
+	ClientEnterMessage    MessageType = iota
+	ClientMakeRoomMessage MessageType = iota
 )
 
 // GetMessageTypeName returns a message type name
@@ -22,6 +24,8 @@ func GetMessageTypeName(msgType MessageType) string {
 	switch msgType {
 	case ErrorMessage:
 		return "ErrorMessage"
+	case HelpMessage:
+		return "HelpMessage"
 	case ClientStartedMessage:
 		return "ClientStartedMessage"
 	case ClientStoppedMessage:
@@ -32,6 +36,8 @@ func GetMessageTypeName(msgType MessageType) string {
 		return "ClientLookMessage"
 	case ClientEnterMessage:
 		return "ClientEnterMessage"
+	case ClientMakeRoomMessage:
+		return "ClientMakeRoomMessage"
 	default:
 		return fmt.Sprintf("Unknown MessageType: %v", msgType)
 	}

@@ -137,7 +137,7 @@ func (c *Client) handleConnection() {
 		}
 
 		// handle the command and exit if appropriate:
-		isExiting := c.handleCommand(command, target, args)
+		isExiting := c.handleCommand(command, target, message, args)
 		if isExiting {
 			c.closeConnection("client exited")
 			return
@@ -146,11 +146,13 @@ func (c *Client) handleConnection() {
 }
 
 // handleCommand will handle any command entered by a client
-func (c *Client) handleCommand(command, target string, args []string) bool {
+func (c *Client) handleCommand(command, target, verbatim string, args []string) bool {
 	isExiting := false
 	switch command {
 	case "exit":
 		isExiting = true
+	case "help":
+		c.messages <- NewMessage(HelpMessage, c, target, args)
 	case "look":
 		c.messages <- NewMessage(ClientLookMessage, c, target, args)
 	case "enter":
@@ -160,6 +162,15 @@ func (c *Client) handleCommand(command, target string, args []string) bool {
 		c.messages <- NewMessage(ClientChatMessage, c, msg, args)
 	case "debug":
 		c.InCombat = !c.InCombat
+	case "mkroom":
+		csv := strings.Split(verbatim, ",")
+		csv[0] = csv[0][7:]
+		if len(csv) != 3 {
+			msg := "mkroom requires 3 comma seperated parms. example:  name,desc,gate"
+			c.messages <- NewMessage(ErrorMessage, c, msg, args)
+		} else {
+			c.messages <- NewMessage(ClientMakeRoomMessage, c, verbatim, csv)
+		}
 	default:
 		msg := fmt.Sprintf("unknown command:%s, args:%v", command, args)
 		c.messages <- NewMessage(ErrorMessage, c, msg, args)
