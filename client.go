@@ -79,17 +79,18 @@ func (c *Client) handleLogin() error {
 	}
 	c.Name = strings.TrimSpace(string(data))
 	c.Write(fmt.Sprintf("%s, %s\r\n", au.Framed("Welcome"), au.Bold(c.Name)))
-	c.messages <- NewMessage(ClientStartedMessage, c, "login completed", []string{})
 	return nil
 }
 
 // closeConnection closes the client connection connection
+// messages: ClientStoppedMessage
 func (c *Client) closeConnection(reason string) {
 	c.conn.Close()
 	c.messages <- NewMessage(ClientStoppedMessage, c, reason, []string{})
 }
 
 // handleConnection handles a new network client connection
+// messages: ClientStartedMessage, ClientInputMessage
 func (c *Client) handleConnection() {
 	// login and exit if fails:
 	err := c.handleLogin()
@@ -97,83 +98,21 @@ func (c *Client) handleConnection() {
 		c.closeConnection("login failed")
 		return
 	}
+	// publish a start message:
+	c.messages <- NewMessage(ClientStartedMessage, c, "login completed", []string{})
 
-	// display room once after succesful login:
-	c.Write(c.room.Look(c.Prompt()))
-
+	// read from the client and publish input messages:
 	for {
-		// wait for a message:
 		data, err := c.reader.ReadString('\n')
 		if err != nil {
 			c.closeConnection("read failed")
 			return
 		}
-
-		// split the message up into fields:
-		message := strings.TrimSpace(string(data))
-		fields := strings.Fields(message)
-
-		// nothing to do if empty:
-		if len(fields) < 1 {
+		input := strings.TrimSpace(string(data))
+		args  := strings.Fields(input)
+		if len(args) < 1 {
 			continue
 		}
-
-		// split the fields into 3 parts:
-		// * command (first keyword)
-		// * args    (list of all keywords after command)
-		// * target  (second keyword or empty string if not exists)
-		//   - target is syntactic sugar for commands that require/use 2nd parm
-		// examples:
-		// "open door" = (command:open, args:[door], target:door)
-		// "look"      = (command:look, args:[],     target:"")
-		command := fields[0]
-		args := []string{}
-		target := ""
-
-		// only set args and target if there are more keywords:
-		if len(fields) > 1 {
-			args = fields[1:]
-			target = args[0]
-		}
-
-		// handle the command and exit if appropriate:
-		isExiting := c.handleCommand(command, target, message, args)
-		if isExiting {
-			c.closeConnection("client exited")
-			return
-		}
+		c.messages <- NewMessage(InputMessage, c, input, args)
 	}
-}
-
-// handleCommand will handle any command entered by a client
-func (c *Client) handleCommand(command, target, verbatim string, args []string) bool {
-	isExiting := false
-	switch command {
-	case "exit":
-		isExiting = true
-	case "help":
-		c.messages <- NewMessage(HelpMessage, c, target, args)
-	case "look":
-		c.messages <- NewMessage(ClientLookMessage, c, target, args)
-	case "enter":
-		c.messages <- NewMessage(ClientEnterMessage, c, target, args)
-	case "say":
-		msg := strings.Join(args, " ")
-		c.messages <- NewMessage(ClientChatMessage, c, msg, args)
-	case "debug":
-		c.InCombat = !c.InCombat
-	case "mkroom":
-		csv := strings.Split(verbatim, ",")
-		csv[0] = csv[0][7:]
-		if len(csv) != 3 {
-			msg := "mkroom requires 3 comma seperated parms. example:  name,desc,gate"
-			c.messages <- NewMessage(ErrorMessage, c, msg, args)
-		} else {
-			c.messages <- NewMessage(ClientMakeRoomMessage, c, verbatim, csv)
-		}
-	default:
-		msg := fmt.Sprintf("unknown command:%s, args:%v", command, args)
-		c.messages <- NewMessage(ErrorMessage, c, msg, args)
-	}
-	return isExiting
 }

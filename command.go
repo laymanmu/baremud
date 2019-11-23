@@ -13,12 +13,12 @@ type Commander struct {
 // NewCommander creates a commander
 func NewCommander() *Commander {
 	c := make(map[string]*Command)
-	c["help"]   = NewCommand("help",   "list all commands or get details about a single comand", 0, 0)
-	c["look"]   = NewCommand("look",   "look at the room or something else", 0, 1)
-	c["enter"]  = NewCommand("enter",  "enter a gate to change rooms", 1, 0)
-	c["exit"]   = NewCommand("exit",   "exit the game", 0, 0)
+	c["help"] = NewCommand("help", "list all commands or get details about a single comand", 0, 0)
+	c["look"] = NewCommand("look", "look at the room or something else", 0, 1)
+	c["enter"] = NewCommand("enter", "enter a gate to change rooms", 1, 0)
+	c["exit"] = NewCommand("exit", "exit the game", 0, 0)
 	c["mkroom"] = NewCommand("mkroom", "make a new room", 0, 0)
-	return &Commander{commands:c}
+	return &Commander{commands: c}
 }
 
 // AddCommand adds a command
@@ -29,28 +29,34 @@ func (c *Commander) AddCommand(command *Command) {
 // ListCommands returns a list of all commands
 func (c *Commander) ListCommands() string {
 	var b bytes.Buffer
-	for command, _ := range c.commands {
+	for command := range c.commands {
 		b.WriteString(fmt.Sprintf("%s - %s\r\n", command, c.commands[command].Desc))
 	}
 	return b.String()
 }
 
+// IsCommand will check if a given string is a known command
+func (c *Commander) IsCommand(command string) bool {
+	_, found := c.commands[command]
+	return found
+}
+
 // Help shows help for a given command
 func (c *Commander) Help(command string) string {
-	com, ok := c.commands[command]; if ok {
+	com, ok := c.commands[command]
+	if ok {
 		return com.Help()
 	}
 	return c.ListCommands()
 }
 
-
-// Command is a command 
+// Command is a command
 type Command struct {
-	Name string
-	Desc string
+	Name            string
+	Desc            string
 	NumRequiredArgs int
 	NumOptionalArgs int
-	Examples []string
+	Examples        []string
 }
 
 // NewCommand creates a command
