@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"time"
 
 	au "github.com/logrusorgru/aurora"
 )
@@ -12,107 +13,127 @@ import (
 // Client is a client
 type Client struct {
 	ID       string
-	Name     string
-	Health   int
-	InCombat bool
-	room     *Room
+	IsClosed bool
+	Upstream chan<- interface{}
 	conn     net.Conn
 	reader   *bufio.Reader
-	messages chan<- *Message
+	Player   *Player
 }
 
 // NewClient creates a client
-func NewClient(conn net.Conn, messages chan<- *Message, room *Room) *Client {
-	name := ""
-	health := 100
-	inCombat := false
+func NewClient(conn net.Conn, upstream chan<- interface{}) *Client {
 	reader := bufio.NewReader(conn)
-	client := &Client{GetID(), name, health, inCombat, room, conn, reader, messages}
-	client.room.Clients[client.ID] = client
-	go client.handleConnection()
+	client := &Client{GetID(), false, upstream, conn, reader, nil}
+
+	go func() {
+		s := "NewClient | getPlayer"
+		defer Trace(s, "ended")
+		Trace(s, "started")
+		err := client.handleLogin()
+		if err != nil {
+			Trace(s, "login failed")
+			client.closeConnection("login failed")
+		} else {
+			Trace(s, "login succeeded")
+			client.Upstream <- NewClientJoinMessage(client)
+			go client.handleInput()
+		}
+	}()
+
 	return client
 }
 
-// EnterGate will enter a gate if it exists
-func (c *Client) EnterGate(name string) {
-	if newRoom, ok := c.room.Gates[name]; ok {
-		delete(c.room.Clients, c.ID)
-		for _, client := range c.room.Clients {
-			client.Write(fmt.Sprintf("%s left the room", au.Green(c.Name)))
-		}
-		for _, client := range newRoom.Clients {
-			client.Write(fmt.Sprintf("%s entered the room", au.Green(c.Name)))
-		}
-		c.room = newRoom
-		c.room.Clients[c.ID] = c
-		c.Write(c.room.Look(c.Prompt()))
-	}
+// Write puts a message in the writeq channel:
+func (c *Client) Write(message string, m ...interface{}) {
+	msg := fmt.Sprintf(message, m...)
+	c.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+	c.conn.Write([]byte(msg + "\r\n"))
 }
 
-// Prompt sends the prompt to the client
-func (c *Client) Prompt() string {
-	left := au.BrightBlack("-=[")
-	right := au.BrightBlack("]=-")
-	div := au.BrightBlack("|")
-	hp := au.Red(fmt.Sprintf("%v", c.Health))
-	alert := au.Green("ok")
-	if c.InCombat {
-		alert = au.Red("combat")
+// Read blocks to read a line of input from the socket with a timeout of 1s
+func (c *Client) Read() string {
+	readTimeout := time.Second * 5
+	c.conn.SetReadDeadline(time.Now().Add(readTimeout))
+	data, err := c.reader.ReadString('\n')
+	if err != nil {
+		if e, ok := err.(net.Error); ok && e.Timeout() {
+			return ""
+		}
+		msg := fmt.Sprintf("read failed: %s", err)
+		c.closeConnection(msg)
+		return ""
 	}
-	if c.Health < 100 {
-		return fmt.Sprintf("%s%s%s%s%s", left, hp, div, alert, right)
-	}
-	return fmt.Sprintf("%s%s%s", left, alert, right)
+	return data
 }
 
-// Write writes a message to the client
-func (c *Client) Write(message string) {
-	c.conn.Write([]byte(fmt.Sprintf("%s\r\n", message)))
+// closeConnection closes the client connection connection
+func (c *Client) closeConnection(reason string) {
+	s := fmt.Sprintf("c | %s | closeConnection", c.ID)
+	defer Trace(s, "ended")
+	Trace(s, "started")
+
+	if c.IsClosed {
+		Trace(s, "already closed")
+		return
+	}
+	c.IsClosed = true
+	c.conn.Close()
+	msg := NewClientLeaveMessage(c, reason)
+	c.Upstream <- msg
 }
 
 // handleLogin handles the client login
 func (c *Client) handleLogin() error {
-	c.Write(fmt.Sprintf("what is your %s?", au.Magenta("name")))
+	s := fmt.Sprintf("c | %s | handleLogin", c.ID)
+	defer Trace(s, "ended")
+	Trace(s, "started")
+
+	// ask for name:
+	msg := fmt.Sprintf("what is your %s? ", au.Magenta("name"))
+	c.conn.Write([]byte(msg))
+
+	// read name:
 	data, err := c.reader.ReadString('\n')
 	if err != nil {
+		Trace(s, "failed to read name. error: %s", err)
 		return err
 	}
-	c.Name = strings.TrimSpace(string(data))
-	c.Write(fmt.Sprintf("%s, %s\r\n", au.Framed("Welcome"), au.Bold(c.Name)))
+	if len(data) < 1 {
+		Trace(s, "failed to provide name")
+		return fmt.Errorf("failed to provide name")
+	}
+
+	// get player:
+	name := strings.TrimSpace(string(data))
+	player := NewPlayer(c, name)
+	c.Player = player
+	c.Write("Welcome, %s\r\n", au.Bold(c.Player.Name))
 	return nil
 }
 
-// closeConnection closes the client connection connection
-// messages: ClientStoppedMessage
-func (c *Client) closeConnection(reason string) {
-	c.conn.Close()
-	c.messages <- NewMessage(ClientStoppedMessage, c, reason, []string{})
-}
-
-// handleConnection handles a new network client connection
-// messages: ClientStartedMessage, ClientInputMessage
-func (c *Client) handleConnection() {
-	// login and exit if fails:
-	err := c.handleLogin()
-	if err != nil {
-		c.closeConnection("login failed")
-		return
-	}
-	// publish a start message:
-	c.messages <- NewMessage(ClientStartedMessage, c, "login completed", []string{})
-
-	// read from the client and publish input messages:
+// handleInput handles input from the network connection
+func (c *Client) handleInput() {
+	s := fmt.Sprintf("c | %s | handleInput", c.ID)
 	for {
-		data, err := c.reader.ReadString('\n')
-		if err != nil {
-			c.closeConnection("read failed")
+		if c.IsClosed {
+			Trace(s, "closing")
 			return
 		}
+
+		data := c.Read()
 		input := strings.TrimSpace(string(data))
-		args  := strings.Fields(input)
-		if len(args) < 1 {
+		if len(input) < 1 {
 			continue
 		}
-		c.messages <- NewMessage(InputMessage, c, input, args)
+
+		inputMsg := NewInputMessage(c, input)
+		c.Upstream <- inputMsg
+		Trace(s, "sent upstream InputMessage id:%s, input:%s", inputMsg.Meta.ID, inputMsg.Input)
+
+		if input == "exit" {
+			Trace(s, "exiting")
+			c.closeConnection("client exited")
+			return
+		}
 	}
 }

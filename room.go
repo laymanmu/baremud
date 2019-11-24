@@ -25,25 +25,24 @@ func NewRoom(name, desc string) *Room {
 }
 
 // Look describes a room
-func (r *Room) Look(prompt string) string {
+func (r *Room) Look() string {
 	var gates []string
 	var clients []string
 	for name := range r.Gates {
 		gates = append(gates, fmt.Sprintf("%s", au.Blue(name)))
 	}
 	for _, c := range r.Clients {
-		clients = append(clients, fmt.Sprintf("%s", au.Green(c.Name)))
+		clients = append(clients, fmt.Sprintf("%s", au.Green(c.Player.Name)))
 	}
 
-	name := fmt.Sprintf("%s %s %s", au.BrightBlack("-=["), au.BrightYellow(r.Name), au.BrightBlack("]=-"))
-	title := fmt.Sprintf("%s %s\r\n", name, prompt)
+	name := fmt.Sprintf("%s %s %s", au.BrightBlack("-=["), au.BrightYellow(r.Name), au.BrightBlack("]=-\r\n"))
 	desc := fmt.Sprintf("%s\r\n", au.White(r.Desc))
 	gateNames := fmt.Sprintf("%s %s%s\r\n", au.BrightBlack("[gates:"), strings.Join(gates, ", "), au.BrightBlack("]"))
 	clientNames := fmt.Sprintf("%s %s%s", au.BrightBlack("[clients:"), strings.Join(clients, ", "), au.BrightBlack("]"))
 
 	var buf bytes.Buffer
 	buf.WriteString("\r\n")
-	buf.WriteString(title)
+	buf.WriteString(name)
 	buf.WriteString(desc)
 	buf.WriteString(gateNames)
 	buf.WriteString(clientNames)
@@ -51,8 +50,9 @@ func (r *Room) Look(prompt string) string {
 }
 
 // Broadcast a message to the room
-func (r *Room) Broadcast(message string) {
+func (r *Room) Broadcast(message string, m ...interface{}) {
+	msg := fmt.Sprintf(message, m...)
 	for _, client := range r.Clients {
-		client.Write(message)
+		client.Write(msg)
 	}
 }
