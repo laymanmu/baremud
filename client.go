@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"net"
 )
 
@@ -39,12 +38,14 @@ func (c *Client) Close() {
 
 // log is for logging a message
 func (c *Client) log(message string, args ...interface{}) {
-	msg := fmt.Sprintf("client:%s | %s\n", c.ID, message)
-	log.Printf(msg, args...)
+	src := fmt.Sprintf("client:%s", c.ID)
+	msg := fmt.Sprintf(message, args...)
+	Log(src, msg)
 }
 
 // handleInput handles client input:
 func (c *Client) handleInput() {
+	c.log("handleInput started")
 	defer func() { c.log("handleInput stopped") }()
 	for {
 		if c.IsClosed {
@@ -59,6 +60,6 @@ func (c *Client) handleInput() {
 			c.Close()
 			return
 		}
-		go func() { c.Input <- NewClientInputMessage(c, input) }()
+		c.Input <- NewClientInputMessage(c, input)
 	}
 }

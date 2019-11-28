@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"time"
 )
 
@@ -28,6 +27,8 @@ func NewGame() *Game {
 
 // Start starts the game
 func (g *Game) Start() {
+	g.log("Start started")
+	defer func() { g.log("Start stopped") }()
 	g.server.Start()
 	go g.handleNewClients()
 	go g.handleClientInput()
@@ -37,6 +38,8 @@ func (g *Game) Start() {
 
 // run is the run loop:
 func (g *Game) run() {
+	g.log("run started")
+	defer func() { g.log("run stopped") }()
 	tickTime := time.Duration(5000) * time.Millisecond
 	tickCount := 0
 	for {
@@ -48,42 +51,22 @@ func (g *Game) run() {
 	}
 }
 
-// tick handles a single tick
-func (g *Game) tick(tickCount int) {
-	msg := fmt.Sprintf("tick: %v", tickCount)
-	g.log(msg)
-}
-
-// handleNewClients handles the new clients channel
+// handleNewClients adds new clients
 func (g *Game) handleNewClients() {
+	g.log("handleNewClients started")
+	defer func() { g.log("handleNewClients stopped") }()
 	for {
 		client := <-g.newClients
 		g.clients[client.ID] = client
 		g.broadcast("[all] %s joined", client.ID)
-	}
-}
-
-// handleClientInput handles client input from all the clients
-func (g *Game) handleClientInput() {
-	for {
-		msg := <-g.clientInput
-		cmd, err := g.commander.GetCommand(msg.Input)
-		if err != nil {
-			msg.Client.Write(err.Error())
-			continue
-		}
-		if cmd.Name == "exit" {
-			g.log("client exiting: %s", msg.Client.ID)
-			g.removeClient(msg.Client)
-			msg.Client.Close()
-			break
-		}
-		go g.commander.HandleCommand(cmd, msg.Client)
+		g.log("added client: %s", client.ID)
 	}
 }
 
 // handleClientPruning removes closed clients
 func (g *Game) handleClientPruning() {
+	g.log("handleClientPruning started")
+	defer func() { g.log("handleClientPruning stopped") }()
 	interval := time.Duration(1000) * time.Millisecond
 	for {
 		select {
@@ -97,6 +80,38 @@ func (g *Game) handleClientPruning() {
 	}
 }
 
+// handleClientInput handles client input from all the clients
+func (g *Game) handleClientInput() {
+	g.log("handleClientInput started")
+	defer func() { g.log("handleClientInput stopped") }()
+	for {
+		msg := <-g.clientInput
+		cmd, err := g.commander.GetCommand(msg.Input)
+		if err != nil {
+			msg.Client.Write(err.Error())
+			continue
+		}
+		if cmd.Name == "exit" {
+			g.removeClient(msg.Client)
+			msg.Client.Close()
+			continue
+		}
+		go g.commander.HandleCommand(cmd, msg.Client)
+	}
+}
+
+// removeClient removes a client:
+func (g *Game) removeClient(client *Client) {
+	delete(g.clients, client.ID)
+	g.broadcast("[all] %s left", client.ID)
+	g.log("removed client: %s", client.ID)
+}
+
+// tick handles a single tick
+func (g *Game) tick(tickCount int) {
+	g.log("tick: %v", tickCount)
+}
+
 // broadcast sends a message to all clients:
 func (g *Game) broadcast(message string, args ...interface{}) {
 	msg := fmt.Sprintf(message, args...)
@@ -105,15 +120,9 @@ func (g *Game) broadcast(message string, args ...interface{}) {
 	}
 }
 
-// removeClient removes a client:
-func (g *Game) removeClient(client *Client) {
-	g.log("before removeClient (client:%s) len(clients): %v", client.ID, len(g.clients))
-	delete(g.clients, client.ID)
-	g.log("after removeClient (client:%s) len(clients): %v", client.ID, len(g.clients))
-}
-
 // log is for logging a message
 func (g *Game) log(message string, args ...interface{}) {
-	msg := fmt.Sprintf("game:%s | %s\n", g.ID, message)
-	log.Printf(msg, args...)
+	src := fmt.Sprintf("game:%s", g.ID)
+	msg := fmt.Sprintf(message, args...)
+	Log(src, msg)
 }

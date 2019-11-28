@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net"
 )
 
@@ -48,6 +47,7 @@ func (s *Server) listen() {
 
 // log is for logging a message
 func (s *Server) log(message string, args ...interface{}) {
-	msg := fmt.Sprintf("server:%s | %s\n", s.ID, message)
-	log.Printf(msg, args...)
+	src := fmt.Sprintf("server:%s", s.ID)
+	msg := fmt.Sprintf(message, args...)
+	Log(src, msg)
 }
