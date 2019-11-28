@@ -59,8 +59,6 @@ func (c *Client) handleInput() {
 			c.Close()
 			return
 		}
-		c.log("pub start input: %s", input)
-		c.Input <- NewClientInputMessage(c, input)
-		c.log("pub done input: %s", input)
+		go func() { c.Input <- NewClientInputMessage(c, input) }()
 	}
 }

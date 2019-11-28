@@ -40,8 +40,8 @@ func (s *Server) listen() {
 			s.log("client accept connection failed: %+v", err)
 		} else {
 			client := NewClient(conn, s.clientInput)
+			s.log("new client: %s, conn: %+v", client.ID, client.conn)
 			s.newClients <- client
-			s.log("accepted connection from client: %s", client.ID)
 		}
 	}
 }

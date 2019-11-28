@@ -29,8 +29,9 @@ func NewCommander() *Commander {
 	look := NewCommand("look", "shows surroundings")
 	enter := NewCommand("enter", "enters a gate")
 	exit := NewCommand("exit", "enters a gate")
+	debug := NewCommand("debug", "debug")
 	commands := make(map[string]*Command)
-	for _, cmd := range []*Command{help, look, enter, exit} {
+	for _, cmd := range []*Command{help, look, enter, exit, debug} {
 		commands[cmd.Name] = cmd
 	}
 	return &Commander{commands}
@@ -69,6 +70,8 @@ func (c *Commander) HandleCommand(command *Command, client *Client) {
 		client.Write("you enter %s", command.Args[0])
 	case "help":
 		client.Write("commands: %v", c.CommandNames())
+	case "debug":
+		client.Write("client.IsClosed:%v", client.IsClosed)
 	default:
 		client.Write("todo: handle command: %s", command.Name)
 	}

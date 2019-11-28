@@ -31,6 +31,7 @@ func (g *Game) Start() {
 	g.server.Start()
 	go g.handleNewClients()
 	go g.handleClientInput()
+	go g.handleClientPruning()
 	g.run()
 }
 
@@ -43,7 +44,6 @@ func (g *Game) run() {
 		case <-time.After(tickTime):
 			tickCount++
 			g.tick(tickCount)
-			g.pruneClients()
 		}
 	}
 }
@@ -73,11 +73,27 @@ func (g *Game) handleClientInput() {
 			continue
 		}
 		if cmd.Name == "exit" {
+			g.log("client exiting: %s", msg.Client.ID)
 			g.removeClient(msg.Client)
 			msg.Client.Close()
 			break
 		}
 		go g.commander.HandleCommand(cmd, msg.Client)
+	}
+}
+
+// handleClientPruning removes closed clients
+func (g *Game) handleClientPruning() {
+	interval := time.Duration(1000) * time.Millisecond
+	for {
+		select {
+		case <-time.After(interval):
+			for _, client := range g.clients {
+				if client.IsClosed {
+					g.removeClient(client)
+				}
+			}
+		}
 	}
 }
 
@@ -91,18 +107,9 @@ func (g *Game) broadcast(message string, args ...interface{}) {
 
 // removeClient removes a client:
 func (g *Game) removeClient(client *Client) {
+	g.log("before removeClient (client:%s) len(clients): %v", client.ID, len(g.clients))
 	delete(g.clients, client.ID)
-	g.broadcast("[all] %s left", client.ID)
-	g.log("%s left", client.ID)
-}
-
-// pruneClients removes closed clients
-func (g *Game) pruneClients() {
-	for _, client := range g.clients {
-		if client.IsClosed {
-			g.removeClient(client)
-		}
-	}
+	g.log("after removeClient (client:%s) len(clients): %v", client.ID, len(g.clients))
 }
 
 // log is for logging a message
