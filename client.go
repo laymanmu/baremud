@@ -45,17 +45,22 @@ func (c *Client) log(message string, args ...interface{}) {
 
 // handleInput handles client input:
 func (c *Client) handleInput() {
+	defer func() { c.log("handleInput stopped") }()
 	for {
 		if c.IsClosed {
-			c.log("handleInput stopping per closed connection")
 			return
 		}
 		input, err := c.reader.ReadString('\n')
 		if err != nil {
-			c.log("handleInput stopping per reader error: %+v", err)
+			if c.IsClosed {
+				return
+			}
+			c.log("closing from error: %s", err.Error())
 			c.Close()
 			return
 		}
+		c.log("pub start input: %s", input)
 		c.Input <- NewClientInputMessage(c, input)
+		c.log("pub done input: %s", input)
 	}
 }

@@ -10,6 +10,7 @@ import (
 type Game struct {
 	ID          string
 	server      *Server
+	commander   *Commander
 	clientInput <-chan *ClientInputMessage
 	newClients  <-chan *Client
 	clients     map[string]*Client
@@ -21,7 +22,8 @@ func NewGame() *Game {
 	newClients := make(chan *Client)
 	clientInput := make(chan *ClientInputMessage)
 	server := NewServer(":2323", newClients, clientInput)
-	return &Game{NewID(), server, clientInput, newClients, clients}
+	commander := NewCommander()
+	return &Game{NewID(), server, commander, clientInput, newClients, clients}
 }
 
 // Start starts the game
@@ -65,7 +67,17 @@ func (g *Game) handleNewClients() {
 func (g *Game) handleClientInput() {
 	for {
 		msg := <-g.clientInput
-		g.broadcast("[all] %s says: %s", msg.Client.ID, msg.Input)
+		cmd, err := g.commander.GetCommand(msg.Input)
+		if err != nil {
+			msg.Client.Write(err.Error())
+			continue
+		}
+		if cmd.Name == "exit" {
+			g.removeClient(msg.Client)
+			msg.Client.Close()
+			break
+		}
+		go g.commander.HandleCommand(cmd, msg.Client)
 	}
 }
 
@@ -81,6 +93,7 @@ func (g *Game) broadcast(message string, args ...interface{}) {
 func (g *Game) removeClient(client *Client) {
 	delete(g.clients, client.ID)
 	g.broadcast("[all] %s left", client.ID)
+	g.log("%s left", client.ID)
 }
 
 // pruneClients removes closed clients
