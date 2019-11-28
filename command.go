@@ -20,6 +20,7 @@ func NewCommand(name, desc string) *Command {
 
 // Commander is a commander
 type Commander struct {
+	ID       string
 	commands map[string]*Command
 }
 
@@ -29,12 +30,13 @@ func NewCommander() *Commander {
 	look := NewCommand("look", "shows surroundings")
 	enter := NewCommand("enter", "enters a gate")
 	exit := NewCommand("exit", "enters a gate")
+	say := NewCommand("say", "send a message to chat")
 	debug := NewCommand("debug", "debug")
 	commands := make(map[string]*Command)
-	for _, cmd := range []*Command{help, look, enter, exit, debug} {
+	for _, cmd := range []*Command{help, look, enter, exit, say, debug} {
 		commands[cmd.Name] = cmd
 	}
-	return &Commander{commands}
+	return &Commander{NewID(), commands}
 }
 
 // GetCommand returns a command from client input if valid
@@ -62,7 +64,7 @@ func (c *Commander) CommandNames() []string {
 }
 
 // HandleCommand handles a command
-func (c *Commander) HandleCommand(command *Command, client *Client) {
+func (c *Commander) HandleCommand(command *Command, client *Client, game *Game) {
 	switch command.Name {
 	case "look":
 		client.Write("you look around")
@@ -70,9 +72,19 @@ func (c *Commander) HandleCommand(command *Command, client *Client) {
 		client.Write("you enter %s", command.Args[0])
 	case "help":
 		client.Write("commands: %v", c.CommandNames())
+	case "say":
+		msg := strings.Join(command.Args, " ")
+		game.broadcast("[all] %s: %s", client.ID, msg)
 	case "debug":
-		client.Write("client.IsClosed:%v", client.IsClosed)
+		client.Write("client: %+v", client)
 	default:
-		client.Write("todo: handle command: %s", command.Name)
+		c.log("unhandled command: %s", command.Name)
 	}
+}
+
+// log is for logging a message
+func (c *Commander) log(message string, args ...interface{}) {
+	src := fmt.Sprintf("cmdr:%s", c.ID)
+	msg := fmt.Sprintf(message, args...)
+	Log(src, msg)
 }

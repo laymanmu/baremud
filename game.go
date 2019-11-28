@@ -96,7 +96,7 @@ func (g *Game) handleClientInput() {
 			msg.Client.Close()
 			continue
 		}
-		go g.commander.HandleCommand(cmd, msg.Client)
+		go g.commander.HandleCommand(cmd, msg.Client, g)
 	}
 }
 
