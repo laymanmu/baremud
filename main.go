@@ -6,8 +6,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// GetID creates a unique id
-func GetID() string {
+// NewID creates a unique id
+func NewID() string {
 	id := uuid.New().String()
 	i := strings.IndexByte(id, '-')
 	if i == -1 {
@@ -16,10 +16,19 @@ func GetID() string {
 	return id[:i]
 }
 
-func main() {
-	world := NewWorld()
-	world.Start()
+// ClientInputMessage is a message with input from a client
+type ClientInputMessage struct {
+	ID     string
+	Client *Client
+	Input  string
+}
 
-	block := make(chan bool)
-	<-block
+// NewClientInputMessage creates a message
+func NewClientInputMessage(client *Client, input string) *ClientInputMessage {
+	return &ClientInputMessage{NewID(), client, input}
+}
+
+func main() {
+	game := NewGame()
+	game.Start()
 }
