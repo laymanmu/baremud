@@ -59,7 +59,7 @@ func (g *Game) handleNewClients() {
 		client := <-g.newClients
 		g.clients[client.ID] = client
 		g.broadcast("[all] %s joined", client.ID)
-		g.log("added client: %s", client.ID)
+		g.log("added client:%s", client.ID)
 	}
 }
 
@@ -104,7 +104,7 @@ func (g *Game) handleClientInput() {
 func (g *Game) removeClient(client *Client) {
 	delete(g.clients, client.ID)
 	g.broadcast("[all] %s left", client.ID)
-	g.log("removed client: %s", client.ID)
+	g.log("removed client:%s", client.ID)
 }
 
 // tick handles a single tick

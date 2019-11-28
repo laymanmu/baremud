@@ -32,14 +32,14 @@ func (s *Server) listen() {
 		s.log("listen() failed to start: %+v", err)
 		panic(err)
 	}
-	s.log("listening at %s\n", s.port)
+	s.log("listening at %s", s.port)
 	for {
 		conn, err := s.listener.Accept()
 		if err != nil {
-			s.log("client accept connection failed: %+v", err)
+			s.log("failed to accept client: %+v", err)
 		} else {
 			client := NewClient(conn, s.clientInput)
-			s.log("new client: %s, conn: %+v", client.ID, client.conn)
+			s.log("accepted client:%s", client.ID)
 			s.newClients <- client
 		}
 	}
