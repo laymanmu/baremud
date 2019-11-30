@@ -53,11 +53,13 @@ func NewPlayer(name string, client *Client) *Player {
 
 // Update updates the player
 func (p *Player) Update(game *Game) {
+	defer (Track("Update", p.log))()
 	p.updateResources()
 }
 
 // findResource returns a resource from an abbreviation
 func (p *Player) findResource(abbrv string) *Resource {
+	defer (Track("findResource", p.log))()
 	for _, resource := range p.Resources {
 		if resource.Abbrv == abbrv {
 			return resource
@@ -68,6 +70,7 @@ func (p *Player) findResource(abbrv string) *Resource {
 
 // BuildPrompt returns a players prompt string
 func (p *Player) BuildPrompt() string {
+	defer (Track("BuildPrompt", p.log))()
 	rp := regexp.MustCompile("%[a-z]+")
 	vars := Uniq(rp.FindAllString(p.PromptTemplate, -1))
 	vals := make(map[string]string, len(vars))
@@ -85,6 +88,7 @@ func (p *Player) BuildPrompt() string {
 
 // updateResources applies each resource delta
 func (p *Player) updateResources() {
+	defer (Track("updateResources", p.log))()
 	for _, res := range p.Resources {
 		v := res.Value + res.Delta
 		if v > res.Max {

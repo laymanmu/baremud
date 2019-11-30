@@ -21,7 +21,7 @@ func NewID(typeName string) string {
 // NewLogger creates a log() function that includes the source
 func NewLogger(source string) Logger {
 	return func(message string, args ...interface{}) {
-		stamp := time.Now().Format("2006/01/02 03:04:05")
+		stamp := time.Now().Format("2006/01/02 03:04:05.000")
 		entry := fmt.Sprintf("%s %-15s | %s\n", stamp, source, message)
 		fmt.Printf(entry, args...)
 	}
@@ -30,9 +30,10 @@ func NewLogger(source string) Logger {
 // Track logs a start msg and returns a function to defer for the stop msg
 // Example: defer (Track("myFunc", my.log))()
 func Track(functionName string, log Logger) func() {
-	log("%s started", functionName)
+	id := NewID("track")
+	log("%s | %s started", id, functionName)
 	return func() {
-		log("%s stopped", functionName)
+		log("%s | %s stopped", id, functionName)
 	}
 }
 
