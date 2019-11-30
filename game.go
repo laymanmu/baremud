@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"time"
 )
 
@@ -115,7 +116,8 @@ func (g *Game) removePlayer(player *Player) {
 // tick handles a single tick
 func (g *Game) tick(tickCount int) {
 	defer (Track(fmt.Sprintf("tick:%v", tickCount), g.log))()
-	for _, player := range g.players {
+	players := g.sortPlayersByEnergy()
+	for _, player := range players {
 		player.Update(g)
 	}
 }
@@ -138,4 +140,22 @@ func (g *Game) getPlayer(client *Client) *Player {
 		}
 	}
 	return nil
+}
+
+// sortPlayersByEnergy sorts players by energy
+func (g *Game) sortPlayersByEnergy() []*Player {
+	keys := make([]string, 0, len(g.players))
+	for key := range g.players {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(x, y int) bool {
+		l := g.players[keys[x]]
+		r := g.players[keys[y]]
+		return l.Resources["energy"].Value > r.Resources["energy"].Value
+	})
+	players := make([]*Player, 0, len(g.players))
+	for _, key := range keys {
+		players = append(players, g.players[key])
+	}
+	return players
 }

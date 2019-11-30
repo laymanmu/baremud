@@ -72,13 +72,15 @@ func (c *Commander) HandleCommand(command *Command, player *Player, game *Game) 
 	case "help":
 		client.Write("commands: %v", c.CommandNames())
 	case "say":
-		game.broadcast("[all] %s: %s", client.ID, command.ArgString())
+		game.broadcast("[all] %s: %s", player.ID, command.ArgString())
 	case "stats":
 		client.Write(player.BuildPrompt())
 	case "debug":
 		player.Resources["health"].Value = 0
 		player.Resources["energy"].Value = 0
-		game.log("len(game.players): %v", len(game.players))
+		for _, p := range game.players {
+			client.Write(fmt.Sprintf("  %s %s", p.ID, p.BuildPrompt()))
+		}
 	default:
 		c.log("unhandled command: %s", command.Name)
 	}
