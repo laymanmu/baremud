@@ -56,20 +56,21 @@ func (g *Game) run() {
 
 // handleNewClients adds new clients
 func (g *Game) handleNewClients() {
-	g.log("handleNewClients started")
-	defer func() { g.log("handleNewClients stopped") }()
+	//track := NewTracker("handleNewClients", g.log)
+	//defer track()
+	defer (Track("handleNewClients", g.log))()
 	for {
 		client := <-g.newClients
 		player := NewPlayer("player", client)
 		g.players[player.ID] = player
 		g.broadcast("[all] %s joined", player.ID)
-		g.log("added player:%s", player.ID)
+		g.log("added %s for %s", player.ID, client.ID)
 	}
 }
 
 // handleClosedClients removes closed clients
 func (g *Game) handleClosedClients() {
-	defer g.track("handleClosedClients")
+	defer (Track("handleClosedClients", g.log))()
 	interval := time.Duration(1000) * time.Millisecond
 	for {
 		select {
@@ -87,17 +88,9 @@ func (g *Game) handleClosedClients() {
 	}
 }
 
-func (g *Game) track(funcName string) func() {
-	g.log("%s started", funcName)
-	return func() {
-		g.log("%s stopped", funcName)
-	}
-}
-
 // handleClientInput handles client input from all the clients
 func (g *Game) handleClientInput() {
-	g.log("handleClientInput started")
-	defer func() { g.log("handleClientInput stopped") }()
+	defer (Track("handleClientInput", g.log))()
 	for {
 		msg := <-g.clientInput
 		cmd, err := g.commander.GetCommand(msg.Input)
@@ -119,7 +112,7 @@ func (g *Game) handleClientInput() {
 func (g *Game) removePlayer(player *Player) {
 	delete(g.players, player.ID)
 	g.broadcast("[all] %s left", player.Name)
-	g.log("removed client:%s", player.Name)
+	g.log("removed %s for %s", player.ID, player.client.ID)
 }
 
 // tick handles a single tick

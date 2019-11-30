@@ -28,21 +28,21 @@ func NewClient(conn net.Conn, input chan<- *ClientInputMessage) *Client {
 
 // Write writes a message to the client
 func (c *Client) Write(message string, args ...interface{}) {
+	defer (Track("Write", c.log))()
 	msg := fmt.Sprintf(message, args...)
 	c.conn.Write([]byte(fmt.Sprintf("%s\r\n", msg)))
 }
 
 // Close closes the client connection
 func (c *Client) Close() {
+	defer (Track("Close", c.log))()
 	c.IsClosed = true
 	c.conn.Close()
-	c.log("closed connection")
 }
 
 // handleInput handles client input:
 func (c *Client) handleInput() {
-	c.log("handleInput started")
-	defer func() { c.log("handleInput stopped") }()
+	defer (Track("handleInput", c.log))()
 	for {
 		if c.IsClosed {
 			return

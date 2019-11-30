@@ -27,12 +27,26 @@ func NewLogger(source string) Logger {
 	}
 }
 
-// NewTracker logs started/stopped messages for a function call
-func NewTracker(functionName string, log Logger) func() {
+// Track logs a start msg and returns a function to defer for the stop msg
+// Example: defer (Track("myFunc", my.log))()
+func Track(functionName string, log Logger) func() {
+	log("%s started", functionName)
 	return func() {
-		log("%s started", functionName)
-		defer log("%s stopped", functionName)
+		log("%s stopped", functionName)
 	}
+}
+
+// Uniq returns a unique list of strings:w
+func Uniq(list []string) []string {
+	keys := make(map[string]bool)
+	uniq := []string{}
+	for _, entry := range list {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			uniq = append(uniq, entry)
+		}
+	}
+	return uniq
 }
 
 func main() {

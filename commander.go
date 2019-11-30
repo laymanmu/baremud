@@ -21,9 +21,10 @@ func NewCommander() *Commander {
 	enter := NewCommand("enter", "enters a gate")
 	exit := NewCommand("exit", "enters a gate")
 	say := NewCommand("say", "send a message to chat")
+	stats := NewCommand("stats", "shows player stats")
 	debug := NewCommand("debug", "debug")
 	commands := make(map[string]*Command)
-	for _, cmd := range []*Command{help, look, enter, exit, say, debug} {
+	for _, cmd := range []*Command{help, look, enter, exit, say, stats, debug} {
 		commands[cmd.Name] = cmd
 	}
 	return &Commander{id, commands, log}
@@ -69,8 +70,12 @@ func (c *Commander) HandleCommand(command *Command, player *Player, game *Game) 
 		client.Write("commands: %v", c.CommandNames())
 	case "say":
 		game.broadcast("[all] %s: %s", client.ID, command.ArgString())
+	case "stats":
+		client.Write(player.BuildPrompt())
 	case "debug":
-		client.Write("client: %+v", client)
+		player.Resources["health"].Value = 0
+		player.Resources["energy"].Value = 0
+		game.log("len(game.players): %v", len(game.players))
 	default:
 		c.log("unhandled command: %s", command.Name)
 	}
