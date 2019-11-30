@@ -23,6 +23,7 @@ func NewServer(port string, newClients chan<- *Client, clientInput chan<- *Clien
 
 // Start starts the server
 func (s *Server) Start() {
+	defer (Track("Start", s.log))()
 	go s.listen()
 }
 

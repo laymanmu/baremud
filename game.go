@@ -30,8 +30,7 @@ func NewGame() *Game {
 
 // Start starts the game
 func (g *Game) Start() {
-	g.log("Start started")
-	defer func() { g.log("Start stopped") }()
+	defer (Track("Start", g.log))()
 	go g.handleNewClients()
 	go g.handleClosedClients()
 	go g.handleClientInput()
@@ -41,8 +40,7 @@ func (g *Game) Start() {
 
 // run is the run loop:
 func (g *Game) run() {
-	g.log("run started")
-	defer func() { g.log("run stopped") }()
+	defer (Track("run", g.log))()
 	tickTime := time.Duration(5000) * time.Millisecond
 	tickCount := 0
 	for {
@@ -56,8 +54,6 @@ func (g *Game) run() {
 
 // handleNewClients adds new clients
 func (g *Game) handleNewClients() {
-	//track := NewTracker("handleNewClients", g.log)
-	//defer track()
 	defer (Track("handleNewClients", g.log))()
 	for {
 		client := <-g.newClients
@@ -110,6 +106,7 @@ func (g *Game) handleClientInput() {
 
 // removePlayer removes a player
 func (g *Game) removePlayer(player *Player) {
+	defer (Track("removePlayer", g.log))()
 	delete(g.players, player.ID)
 	g.broadcast("[all] %s left", player.Name)
 	g.log("removed %s for %s", player.ID, player.client.ID)
@@ -117,7 +114,7 @@ func (g *Game) removePlayer(player *Player) {
 
 // tick handles a single tick
 func (g *Game) tick(tickCount int) {
-	g.log("tick: %v", tickCount)
+	defer (Track(fmt.Sprintf("tick:%v", tickCount), g.log))()
 	for _, player := range g.players {
 		player.Update(g)
 	}
@@ -125,6 +122,7 @@ func (g *Game) tick(tickCount int) {
 
 // broadcast sends a message to all clients:
 func (g *Game) broadcast(message string, args ...interface{}) {
+	defer (Track("broadcast", g.log))()
 	msg := fmt.Sprintf(message, args...)
 	for _, player := range g.players {
 		player.client.Write(msg)
@@ -133,6 +131,7 @@ func (g *Game) broadcast(message string, args ...interface{}) {
 
 // getPlayer gets a player from a client lookup
 func (g *Game) getPlayer(client *Client) *Player {
+	defer (Track("getPlayer", g.log))()
 	for _, player := range g.players {
 		if player.client.ID == client.ID {
 			return player

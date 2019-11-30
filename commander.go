@@ -32,6 +32,7 @@ func NewCommander() *Commander {
 
 // GetCommand returns a command from client input if valid
 func (c *Commander) GetCommand(input string) (*Command, error) {
+	defer (Track("GetCommand", c.log))()
 	if len(input) < 1 {
 		return nil, fmt.Errorf("missing input")
 	}
@@ -47,6 +48,7 @@ func (c *Commander) GetCommand(input string) (*Command, error) {
 
 // CommandNames returns a list of known command names
 func (c *Commander) CommandNames() []string {
+	defer (Track("CommandNames", c.log))()
 	names := []string{}
 	for name := range c.commands {
 		names = append(names, name)
@@ -56,6 +58,7 @@ func (c *Commander) CommandNames() []string {
 
 // HandleCommand handles a command
 func (c *Commander) HandleCommand(command *Command, player *Player, game *Game) {
+	defer (Track("HandleCommand", c.log))()
 	client := player.client
 	switch command.Name {
 	case "look":
