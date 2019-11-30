@@ -60,7 +60,7 @@ func (g *Game) handleNewClients() {
 		client := <-g.newClients
 		player := NewPlayer("player", client)
 		g.players[player.ID] = player
-		g.broadcast("[all] %s joined", player.ID)
+		g.broadcast("%s joined", player.ID)
 		g.log("added %s for %s", player.ID, client.ID)
 	}
 }
@@ -109,7 +109,7 @@ func (g *Game) handleClientInput() {
 func (g *Game) removePlayer(player *Player) {
 	defer (Track("removePlayer", g.log))()
 	delete(g.players, player.ID)
-	g.broadcast("[all] %s left", player.Name)
+	g.broadcast("%s left", player.Name)
 	g.log("removed %s for %s", player.ID, player.client.ID)
 }
 
