@@ -9,5 +9,5 @@ type ClientInputMessage struct {
 
 // NewClientInputMessage creates a message
 func NewClientInputMessage(client *Client, input string) *ClientInputMessage {
-	return &ClientInputMessage{NewID(), client, input}
+	return &ClientInputMessage{NewID("message"), client, input}
 }

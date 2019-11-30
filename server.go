@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net"
 )
 
@@ -12,11 +11,14 @@ type Server struct {
 	clientInput chan<- *ClientInputMessage
 	port        string
 	listener    net.Listener
+	log         Logger
 }
 
 // NewServer creates a server
 func NewServer(port string, newClients chan<- *Client, clientInput chan<- *ClientInputMessage) *Server {
-	return &Server{NewID(), newClients, clientInput, port, nil}
+	id := NewID("server")
+	log := NewLogger(id)
+	return &Server{id, newClients, clientInput, port, nil, log}
 }
 
 // Start starts the server
@@ -43,11 +45,4 @@ func (s *Server) listen() {
 			s.newClients <- client
 		}
 	}
-}
-
-// log is for logging a message
-func (s *Server) log(message string, args ...interface{}) {
-	src := fmt.Sprintf("server:%s", s.ID)
-	msg := fmt.Sprintf(message, args...)
-	Log(src, msg)
 }

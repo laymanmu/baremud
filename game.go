@@ -8,31 +8,34 @@ import (
 // Game is a game
 type Game struct {
 	ID          string
+	log         Logger
+	newClients  <-chan *Client
+	clientInput <-chan *ClientInputMessage
+	players     map[string]*Player
 	server      *Server
 	commander   *Commander
-	clientInput <-chan *ClientInputMessage
-	newClients  <-chan *Client
-	clients     map[string]*Client
 }
 
 // NewGame creates a world
 func NewGame() *Game {
-	clients := make(map[string]*Client)
+	id := NewID("game")
+	log := NewLogger(id)
 	newClients := make(chan *Client)
 	clientInput := make(chan *ClientInputMessage)
+	players := make(map[string]*Player)
 	server := NewServer(":2323", newClients, clientInput)
 	commander := NewCommander()
-	return &Game{NewID(), server, commander, clientInput, newClients, clients}
+	return &Game{id, log, newClients, clientInput, players, server, commander}
 }
 
 // Start starts the game
 func (g *Game) Start() {
 	g.log("Start started")
 	defer func() { g.log("Start stopped") }()
-	g.server.Start()
 	go g.handleNewClients()
+	go g.handleClosedClients()
 	go g.handleClientInput()
-	go g.handleClientPruning()
+	g.server.Start()
 	g.run()
 }
 
@@ -57,26 +60,37 @@ func (g *Game) handleNewClients() {
 	defer func() { g.log("handleNewClients stopped") }()
 	for {
 		client := <-g.newClients
-		g.clients[client.ID] = client
-		g.broadcast("[all] %s joined", client.ID)
-		g.log("added client:%s", client.ID)
+		player := NewPlayer("player", client)
+		g.players[player.ID] = player
+		g.broadcast("[all] %s joined", player.ID)
+		g.log("added player:%s", player.ID)
 	}
 }
 
-// handleClientPruning removes closed clients
-func (g *Game) handleClientPruning() {
-	g.log("handleClientPruning started")
-	defer func() { g.log("handleClientPruning stopped") }()
+// handleClosedClients removes closed clients
+func (g *Game) handleClosedClients() {
+	defer g.track("handleClosedClients")
 	interval := time.Duration(1000) * time.Millisecond
 	for {
 		select {
 		case <-time.After(interval):
-			for _, client := range g.clients {
-				if client.IsClosed {
-					g.removeClient(client)
+			closed := []*Player{}
+			for _, player := range g.players {
+				if player.client.IsClosed {
+					closed = append(closed, player)
 				}
 			}
+			for _, player := range closed {
+				g.removePlayer(player)
+			}
 		}
+	}
+}
+
+func (g *Game) track(funcName string) func() {
+	g.log("%s started", funcName)
+	return func() {
+		g.log("%s stopped", funcName)
 	}
 }
 
@@ -87,42 +101,49 @@ func (g *Game) handleClientInput() {
 	for {
 		msg := <-g.clientInput
 		cmd, err := g.commander.GetCommand(msg.Input)
+		player := g.getPlayer(msg.Client)
 		if err != nil {
 			msg.Client.Write(err.Error())
 			continue
 		}
 		if cmd.Name == "exit" {
-			g.removeClient(msg.Client)
+			g.removePlayer(player)
 			msg.Client.Close()
 			continue
 		}
-		go g.commander.HandleCommand(cmd, msg.Client, g)
+		go g.commander.HandleCommand(cmd, player, g)
 	}
 }
 
-// removeClient removes a client:
-func (g *Game) removeClient(client *Client) {
-	delete(g.clients, client.ID)
-	g.broadcast("[all] %s left", client.ID)
-	g.log("removed client:%s", client.ID)
+// removePlayer removes a player
+func (g *Game) removePlayer(player *Player) {
+	delete(g.players, player.ID)
+	g.broadcast("[all] %s left", player.Name)
+	g.log("removed client:%s", player.Name)
 }
 
 // tick handles a single tick
 func (g *Game) tick(tickCount int) {
 	g.log("tick: %v", tickCount)
+	for _, player := range g.players {
+		player.Update(g)
+	}
 }
 
 // broadcast sends a message to all clients:
 func (g *Game) broadcast(message string, args ...interface{}) {
 	msg := fmt.Sprintf(message, args...)
-	for _, client := range g.clients {
-		client.Write(msg)
+	for _, player := range g.players {
+		player.client.Write(msg)
 	}
 }
 
-// log is for logging a message
-func (g *Game) log(message string, args ...interface{}) {
-	src := fmt.Sprintf("game:%s", g.ID)
-	msg := fmt.Sprintf(message, args...)
-	Log(src, msg)
+// getPlayer gets a player from a client lookup
+func (g *Game) getPlayer(client *Client) *Player {
+	for _, player := range g.players {
+		if player.client.ID == client.ID {
+			return player
+		}
+	}
+	return nil
 }
