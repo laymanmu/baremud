@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"sort"
 	"time"
 )
 
@@ -12,7 +11,7 @@ type Game struct {
 	log         Logger
 	newClients  <-chan *Client
 	clientInput <-chan *ClientInputMessage
-	players     map[string]*Player
+	state       *State
 	server      *Server
 	commander   *Commander
 }
@@ -23,10 +22,10 @@ func NewGame() *Game {
 	log := NewLogger(id)
 	newClients := make(chan *Client)
 	clientInput := make(chan *ClientInputMessage)
-	players := make(map[string]*Player)
+	state := NewState()
 	server := NewServer(":2323", newClients, clientInput)
 	commander := NewCommander()
-	return &Game{id, log, newClients, clientInput, players, server, commander}
+	return &Game{id, log, newClients, clientInput, state, server, commander}
 }
 
 // Start starts the game
@@ -59,7 +58,7 @@ func (g *Game) handleNewClients() {
 	for {
 		client := <-g.newClients
 		player := NewPlayer("player", client)
-		g.players[player.ID] = player
+		g.state.Players[player.ID] = player
 		g.broadcast("%s joined", player.ID)
 		g.log("added %s for %s", player.ID, client.ID)
 	}
@@ -73,7 +72,7 @@ func (g *Game) handleClosedClients() {
 		select {
 		case <-time.After(interval):
 			closed := []*Player{}
-			for _, player := range g.players {
+			for _, player := range g.state.Players {
 				if player.client.IsClosed {
 					closed = append(closed, player)
 				}
@@ -108,15 +107,15 @@ func (g *Game) handleClientInput() {
 // removePlayer removes a player
 func (g *Game) removePlayer(player *Player) {
 	defer (Track("removePlayer", g.log))()
-	delete(g.players, player.ID)
-	g.broadcast("%s left", player.Name)
+	delete(g.state.Players, player.ID)
+	g.broadcast("%s left", player.ID)
 	g.log("removed %s for %s", player.ID, player.client.ID)
 }
 
 // tick handles a single tick
 func (g *Game) tick(tickCount int) {
-	defer (Track(fmt.Sprintf("tick:%v", tickCount), g.log))()
-	players := g.sortPlayersByEnergy()
+	defer (Track(fmt.Sprintf("-= tick:%v =-", tickCount), g.log))()
+	players := g.state.SortPlayersBy("energy")
 	for _, player := range players {
 		player.Update(g)
 	}
@@ -126,7 +125,7 @@ func (g *Game) tick(tickCount int) {
 func (g *Game) broadcast(message string, args ...interface{}) {
 	defer (Track("broadcast", g.log))()
 	msg := fmt.Sprintf(message, args...)
-	for _, player := range g.players {
+	for _, player := range g.state.Players {
 		player.client.Write(msg)
 	}
 }
@@ -134,28 +133,10 @@ func (g *Game) broadcast(message string, args ...interface{}) {
 // getPlayer gets a player from a client lookup
 func (g *Game) getPlayer(client *Client) *Player {
 	defer (Track("getPlayer", g.log))()
-	for _, player := range g.players {
+	for _, player := range g.state.Players {
 		if player.client.ID == client.ID {
 			return player
 		}
 	}
 	return nil
-}
-
-// sortPlayersByEnergy sorts players by energy
-func (g *Game) sortPlayersByEnergy() []*Player {
-	keys := make([]string, 0, len(g.players))
-	for key := range g.players {
-		keys = append(keys, key)
-	}
-	sort.Slice(keys, func(x, y int) bool {
-		l := g.players[keys[x]]
-		r := g.players[keys[y]]
-		return l.Resources["energy"].Value > r.Resources["energy"].Value
-	})
-	players := make([]*Player, 0, len(g.players))
-	for _, key := range keys {
-		players = append(players, g.players[key])
-	}
-	return players
 }

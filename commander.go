@@ -78,7 +78,7 @@ func (c *Commander) HandleCommand(command *Command, player *Player, game *Game) 
 	case "debug":
 		player.Resources["health"].Value = 0
 		player.Resources["energy"].Value = 0
-		for _, p := range game.players {
+		for _, p := range game.state.Players {
 			client.Write(fmt.Sprintf("  %s %s", p.ID, p.BuildPrompt()))
 		}
 	default:
