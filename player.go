@@ -22,6 +22,17 @@ func NewResource(name, abbrv string, value, delta int) *Resource {
 	return &Resource{NewID("resource"), name, abbrv, value, value, 0, delta}
 }
 
+// Update updates the resource
+func (r *Resource) Update() {
+	v := r.Value + r.Delta
+	if v > r.Max {
+		v = r.Max
+	} else if v < r.Min {
+		v = r.Min
+	}
+	r.Value = v
+}
+
 // String returns a string
 func (r *Resource) String() string {
 	return fmt.Sprintf("%s:%v", r.Abbrv, r.Value)
@@ -68,7 +79,7 @@ func (p *Player) findResource(abbrv string) *Resource {
 	return nil
 }
 
-// BuildPrompt returns a players prompt string
+// BuildPrompt rebuilds the prompt
 func (p *Player) BuildPrompt() string {
 	defer (Track("BuildPrompt", p.log))()
 	rp := regexp.MustCompile("%[a-z]+")

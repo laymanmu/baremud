@@ -14,6 +14,7 @@ type Game struct {
 	state       *State
 	server      *Server
 	commander   *Commander
+	players     []*Player
 }
 
 // NewGame creates a world
@@ -25,7 +26,8 @@ func NewGame() *Game {
 	state := NewState()
 	server := NewServer(":2323", newClients, clientInput)
 	commander := NewCommander()
-	return &Game{id, log, newClients, clientInput, state, server, commander}
+	players := []*Player{}
+	return &Game{id, log, newClients, clientInput, state, server, commander, players}
 }
 
 // Start starts the game
@@ -42,25 +44,38 @@ func (g *Game) Start() {
 func (g *Game) run() {
 	defer (Track("run", g.log))()
 	tickTime := time.Duration(5000) * time.Millisecond
-	tickCount := 0
 	for {
 		select {
 		case <-time.After(tickTime):
-			tickCount++
-			g.tick(tickCount)
+			g.state.TickCount++
+			g.tick(g.state.TickCount)
 		}
+	}
+}
+
+// tick handles a single tick
+func (g *Game) tick(tickCount int) {
+	defer (Track(fmt.Sprintf("-= tick:%v =-", tickCount), g.log))()
+
+	// update the players list:
+	g.players = g.state.GetAllPlayers()
+
+	// update each player:
+	for _, player := range g.players {
+		player.Update(g)
 	}
 }
 
 // handleNewClients adds new clients
 func (g *Game) handleNewClients() {
-	defer (Track("handleNewClients", g.log))()
+	n := "handleNewClients"
+	defer (Track(n, g.log))()
 	for {
 		client := <-g.newClients
 		player := NewPlayer("player", client)
-		g.state.Players[player.ID] = player
+		g.state.Add(player, g.state.StartingPlace())
 		g.broadcast("%s joined", player.ID)
-		g.log("added %s for %s", player.ID, client.ID)
+		g.log("%s | added %s for %s", n, player.ID, client.ID)
 	}
 }
 
@@ -72,7 +87,7 @@ func (g *Game) handleClosedClients() {
 		select {
 		case <-time.After(interval):
 			closed := []*Player{}
-			for _, player := range g.state.Players {
+			for _, player := range g.players {
 				if player.client.IsClosed {
 					closed = append(closed, player)
 				}
@@ -90,53 +105,33 @@ func (g *Game) handleClientInput() {
 	for {
 		msg := <-g.clientInput
 		cmd, err := g.commander.GetCommand(msg.Input)
-		player := g.getPlayer(msg.Client)
 		if err != nil {
 			msg.Client.Write(err.Error())
 			continue
 		}
+		player := g.state.clientPlayer[msg.Client.ID]
 		if cmd.Name == "exit" {
 			g.removePlayer(player)
 			msg.Client.Close()
 			continue
 		}
-		go g.commander.HandleCommand(cmd, player, g)
+		go g.commander.HandleCommand(cmd, player, g, g.state)
 	}
 }
 
 // removePlayer removes a player
 func (g *Game) removePlayer(player *Player) {
 	defer (Track("removePlayer", g.log))()
-	delete(g.state.Players, player.ID)
+	g.state.RemovePlayer(player)
 	g.broadcast("%s left", player.ID)
 	g.log("removed %s for %s", player.ID, player.client.ID)
-}
-
-// tick handles a single tick
-func (g *Game) tick(tickCount int) {
-	defer (Track(fmt.Sprintf("-= tick:%v =-", tickCount), g.log))()
-	players := g.state.SortPlayersBy("energy")
-	for _, player := range players {
-		player.Update(g)
-	}
 }
 
 // broadcast sends a message to all clients:
 func (g *Game) broadcast(message string, args ...interface{}) {
 	defer (Track("broadcast", g.log))()
 	msg := fmt.Sprintf(message, args...)
-	for _, player := range g.state.Players {
+	for _, player := range g.players {
 		player.client.Write(msg)
 	}
-}
-
-// getPlayer gets a player from a client lookup
-func (g *Game) getPlayer(client *Client) *Player {
-	defer (Track("getPlayer", g.log))()
-	for _, player := range g.state.Players {
-		if player.client.ID == client.ID {
-			return player
-		}
-	}
-	return nil
 }

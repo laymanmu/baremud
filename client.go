@@ -56,6 +56,7 @@ func (c *Client) handleInput() {
 			c.Close()
 			return
 		}
+		c.log("sending input message: %s", input)
 		c.Input <- NewClientInputMessage(c, input)
 	}
 }

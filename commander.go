@@ -57,7 +57,7 @@ func (c *Commander) CommandNames() []string {
 }
 
 // HandleCommand handles a command
-func (c *Commander) HandleCommand(command *Command, player *Player, game *Game) {
+func (c *Commander) HandleCommand(command *Command, player *Player, game *Game, state *State) {
 	defer (Track("HandleCommand", c.log))()
 	client := player.client
 	switch command.Name {
@@ -65,20 +65,21 @@ func (c *Commander) HandleCommand(command *Command, player *Player, game *Game) 
 		if command.HasArgs() {
 			client.Write("you look at %s", command.ArgString())
 		} else {
-			client.Write("you look around")
+			place := state.GetPlace(player)
+			client.Write(place.LookAt(player))
 		}
 	case "enter":
 		client.Write("you enter %s", command.Args[0])
 	case "help":
 		client.Write("commands: %v", c.CommandNames())
 	case "say":
-		game.broadcast("[all] %s: %s", player.ID, command.ArgString())
+		game.broadcast("%s says: %s", player.ID, command.ArgString())
 	case "stats":
 		client.Write(player.BuildPrompt())
 	case "debug":
 		player.Resources["health"].Value = 0
 		player.Resources["energy"].Value = 0
-		for _, p := range game.state.Players {
+		for _, p := range game.players {
 			client.Write(fmt.Sprintf("  %s %s", p.ID, p.BuildPrompt()))
 		}
 	default:
