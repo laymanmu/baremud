@@ -6,27 +6,6 @@ import (
 	"strings"
 )
 
-// Resource is a resource
-type Resource struct {
-	ID    string
-	Name  string
-	Abbrv string
-	Value int
-	Max   int
-	Min   int
-	Delta int
-}
-
-// NewResource creates a resource
-func NewResource(name, abbrv string, value, delta int) *Resource {
-	return &Resource{NewID("resource"), name, abbrv, value, value, 0, delta}
-}
-
-// String returns a string
-func (r *Resource) String() string {
-	return fmt.Sprintf("%s:%v", r.Abbrv, r.Value)
-}
-
 // Player is a player
 type Player struct {
 	ID             string
@@ -35,10 +14,11 @@ type Player struct {
 	PromptTemplate string
 	client         *Client
 	log            Logger
+	Place          *Place
 }
 
 // NewPlayer creates a player
-func NewPlayer(name string, client *Client) *Player {
+func NewPlayer(name string, client *Client, place *Place) *Player {
 	id := NewID("player")
 	log := NewLogger(id)
 	resources := make(map[string]*Resource)
@@ -48,36 +28,28 @@ func NewPlayer(name string, client *Client) *Player {
 	resources["experience"] = NewResource("experience", "xp", 0, 0)
 	resources["experience"].Max = 999999999
 	promptTemplate := "[xp:%xp|fp:%fp|hp:%hp|ep:%ep]"
-	return &Player{id, name, resources, promptTemplate, client, log}
+	player := &Player{id, name, resources, promptTemplate, client, log, nil}
+	place.AddPlayer(player)
+	return player
 }
 
 // Update updates the player
 func (p *Player) Update(game *Game) {
-	defer (Track("Update", p.log))()
-	p.updateResources()
-}
-
-// findResource returns a resource from an abbreviation
-func (p *Player) findResource(abbrv string) *Resource {
-	defer (Track("findResource", p.log))()
 	for _, resource := range p.Resources {
-		if resource.Abbrv == abbrv {
-			return resource
-		}
+		resource.Update()
 	}
-	return nil
 }
 
 // BuildPrompt returns a players prompt string
 func (p *Player) BuildPrompt() string {
-	defer (Track("BuildPrompt", p.log))()
 	rp := regexp.MustCompile("%[a-z]+")
 	vars := Uniq(rp.FindAllString(p.PromptTemplate, -1))
 	vals := make(map[string]string, len(vars))
 	for _, v := range vars {
-		abbrv := strings.Replace(v, "%", "", 1)
-		res := p.findResource(abbrv)
-		vals[v] = fmt.Sprintf("%v", res.Value)
+		name := strings.Replace(v, "%", "", 1)
+		if res, ok := p.Resources[name]; ok {
+			vals[v] = fmt.Sprintf("%v", res.Value)
+		}
 	}
 	prompt := p.PromptTemplate[:]
 	for k, v := range vals {
@@ -86,16 +58,15 @@ func (p *Player) BuildPrompt() string {
 	return prompt
 }
 
-// updateResources applies each resource delta
-func (p *Player) updateResources() {
-	defer (Track("updateResources", p.log))()
-	for _, res := range p.Resources {
-		v := res.Value + res.Delta
-		if v > res.Max {
-			v = res.Max
-		} else if v < res.Min {
-			v = res.Min
-		}
-		res.Value = v
+// MoveTo moves a player to a place
+func (p *Player) MoveTo(place *Place) {
+	if p.Place != nil {
+		p.Place.RemovePlayer(p)
 	}
+	place.AddPlayer(p)
+}
+
+// Look sends a look response to the client
+func (p *Player) Look() {
+	p.client.Write(p.Place.Look(p))
 }

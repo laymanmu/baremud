@@ -8,13 +8,15 @@ import (
 
 // Game is a game
 type Game struct {
-	ID          string
-	log         Logger
-	newClients  <-chan *Client
-	clientInput <-chan *ClientInputMessage
-	players     map[string]*Player
-	server      *Server
-	commander   *Commander
+	ID            string
+	log           Logger
+	server        *Server
+	commander     *Commander
+	newClients    <-chan *Client
+	clientInput   <-chan *ClientInputMessage
+	players       map[string]*Player
+	places        map[string]*Place
+	startingPlace *Place
 }
 
 // NewGame creates a world
@@ -23,10 +25,19 @@ func NewGame() *Game {
 	log := NewLogger(id)
 	newClients := make(chan *Client)
 	clientInput := make(chan *ClientInputMessage)
-	players := make(map[string]*Player)
 	server := NewServer(":2323", newClients, clientInput)
 	commander := NewCommander()
-	return &Game{id, log, newClients, clientInput, players, server, commander}
+	players := make(map[string]*Player)
+	places := make(map[string]*Place)
+	start := NewPlace("Starting Place", "A place to start")
+	places[start.ID] = start
+	return &Game{id, log, server, commander, newClients, clientInput, players, places, start}
+}
+
+// Load loads game data
+func (g *Game) Load() {
+	g.startingPlace = NewPlace("Start", "Starting Place")
+	g.places[g.startingPlace.ID] = g.startingPlace
 }
 
 // Start starts the game
@@ -58,10 +69,11 @@ func (g *Game) handleNewClients() {
 	defer (Track("handleNewClients", g.log))()
 	for {
 		client := <-g.newClients
-		player := NewPlayer("player", client)
+		player := NewPlayer("player", client, g.startingPlace)
 		g.players[player.ID] = player
 		g.broadcast("%s joined", player.ID)
 		g.log("added %s for %s", player.ID, client.ID)
+		player.Look()
 	}
 }
 
@@ -109,6 +121,9 @@ func (g *Game) handleClientInput() {
 func (g *Game) removePlayer(player *Player) {
 	defer (Track("removePlayer", g.log))()
 	delete(g.players, player.ID)
+	if player.Place != nil {
+		player.Place.RemovePlayer(player)
+	}
 	g.broadcast("%s left", player.Name)
 	g.log("removed %s for %s", player.ID, player.client.ID)
 }

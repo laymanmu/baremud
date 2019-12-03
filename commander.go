@@ -62,26 +62,23 @@ func (c *Commander) HandleCommand(command *Command, player *Player, game *Game) 
 	client := player.client
 	switch command.Name {
 	case "look":
-		if command.HasArgs() {
-			client.Write("you look at %s", command.ArgString())
-		} else {
-			client.Write("you look around")
-		}
+		player.Look()
 	case "enter":
 		client.Write("you enter %s", command.Args[0])
 	case "help":
 		client.Write("commands: %v", c.CommandNames())
 	case "say":
-		game.broadcast("[all] %s: %s", player.ID, command.ArgString())
+		game.broadcast("[chat] %s: %s", player.ID, command.ArgString())
 	case "stats":
 		client.Write(player.BuildPrompt())
 	case "debug":
-		player.Resources["health"].Value = 0
-		player.Resources["energy"].Value = 0
+		client.Write(player.Place.Look(player))
 		for _, p := range game.players {
 			client.Write(fmt.Sprintf("  %s %s", p.ID, p.BuildPrompt()))
 		}
 	default:
-		c.log("unhandled command: %s", command.Name)
+		msg := fmt.Sprintf("error: unhandled command: %s", command.Name)
+		c.log(msg)
+		client.Write(msg)
 	}
 }
