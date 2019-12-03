@@ -7,7 +7,7 @@ type Place struct {
 	ID      string
 	Name    string
 	Desc    string
-	Players []*Player
+	players []*Player
 	log     Logger
 }
 
@@ -16,13 +16,14 @@ func NewPlace(name, desc string) *Place {
 	id := NewID("place")
 	log := NewLogger(id)
 	players := []*Player{}
+	log("starting with players: %v", players)
 	return &Place{id, name, desc, players, log}
 }
 
 // Look looks at a place
 func (p *Place) Look(looker *Player) string {
 	playerNames := []string{}
-	for _, player := range p.Players {
+	for _, player := range p.players {
 		if player.ID != looker.ID {
 			playerNames = append(playerNames, player.Name)
 		}
@@ -41,7 +42,7 @@ func (p *Place) Look(looker *Player) string {
 
 // IsInRoom checks if a player is in this place
 func (p *Place) IsInRoom(player *Player) bool {
-	for _, roomPlayer := range p.Players {
+	for _, roomPlayer := range p.players {
 		if roomPlayer.ID == player.ID {
 			return true
 		}
@@ -55,7 +56,8 @@ func (p *Place) AddPlayer(player *Player) {
 	if p.IsInRoom(player) {
 		return
 	}
-	p.Players = append(p.Players, player)
+	p.players = append(p.players, player)
+	p.log("players after adding: %s", p.PlayerIDs())
 }
 
 // RemovePlayer removes a player
@@ -64,11 +66,21 @@ func (p *Place) RemovePlayer(player *Player) {
 	if !p.IsInRoom(player) {
 		return
 	}
-	players := make([]*Player, len(p.Players)-1)
-	for _, roomPlayer := range p.Players {
+	players := []*Player{}
+	for _, roomPlayer := range p.players {
 		if roomPlayer.ID != player.ID {
 			players = append(players, roomPlayer)
 		}
 	}
-	p.Players = players
+	p.players = players
+	p.log("players after removing: %s", p.PlayerIDs())
+}
+
+// PlayerIDs returns a list of Player IDs
+func (p *Place) PlayerIDs() []string {
+	ids := make([]string, len(p.players))
+	for i, player := range p.players {
+		ids[i] = player.ID
+	}
+	return ids
 }

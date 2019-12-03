@@ -120,10 +120,10 @@ func (g *Game) handleClientInput() {
 // removePlayer removes a player
 func (g *Game) removePlayer(player *Player) {
 	defer (Track("removePlayer", g.log))()
-	delete(g.players, player.ID)
 	if player.Place != nil {
 		player.Place.RemovePlayer(player)
 	}
+	delete(g.players, player.ID)
 	g.broadcast("%s left", player.Name)
 	g.log("removed %s for %s", player.ID, player.client.ID)
 }
