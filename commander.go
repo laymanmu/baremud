@@ -16,18 +16,10 @@ type Commander struct {
 func NewCommander() *Commander {
 	id := NewID("commander")
 	log := NewLogger(id)
-	help := NewCommand("help", "shows help")
-	look := NewCommand("look", "shows surroundings")
-	enter := NewCommand("enter", "enters a gate")
-	exit := NewCommand("exit", "enters a gate")
-	say := NewCommand("say", "send a message to chat")
-	stats := NewCommand("stats", "shows player stats")
-	debug := NewCommand("debug", "debug")
 	commands := make(map[string]*Command)
-	for _, cmd := range []*Command{help, look, enter, exit, say, stats, debug} {
-		commands[cmd.Name] = cmd
-	}
-	return &Commander{id, commands, log}
+	commander := &Commander{id, commands, log}
+
+	return commander
 }
 
 // GetCommand returns a command from client input if valid
@@ -62,26 +54,66 @@ func (c *Commander) CommandNames() []string {
 // HandleCommand handles a command
 func (c *Commander) HandleCommand(command *Command, player *Player, game *Game) {
 	defer (Track("HandleCommand", c.log))()
-	client := player.client
 	switch command.Name {
 	case "look":
-		player.Look()
+		c.handleLook(command, player, game)
 	case "enter":
-		client.Write("you enter %s", command.Args[0])
+		c.handleEnter(command, player, game)
 	case "help":
-		client.Write("commands: %v", c.CommandNames())
+		c.handleHelp(command, player, game)
 	case "say":
-		game.broadcast("[chat] %s: %s", player.ID, command.ArgString())
+		c.handleSay(command, player, game)
 	case "stats":
-		client.Write(player.BuildPrompt())
+		c.handleStats(command, player, game)
 	case "debug":
-		client.Write(player.Place.Look(player))
-		for _, p := range game.players {
-			client.Write(fmt.Sprintf("  %s %s", p.ID, p.BuildPrompt()))
-		}
+		c.handleDebug(command, player, game)
 	default:
 		msg := fmt.Sprintf("error: unhandled command: %s", command.Name)
 		c.log(msg)
-		client.Write(msg)
+		player.client.Write(msg)
+	}
+}
+
+// createCommands will create the commands
+func (c *Commander) createCommands() {
+	c.commands["help"] = NewCommand("help", "shows help")
+	c.commands["look"] = NewCommand("look", "shows surroundings")
+	c.commands["enter"] = NewCommand("enter", "enters a gate")
+	c.commands["exit"] = NewCommand("exit", "enters a gate")
+	c.commands["say"] = NewCommand("say", "send a message to chat")
+	c.commands["stats"] = NewCommand("stats", "shows player stats")
+	c.commands["debug"] = NewCommand("debug", "debug")
+}
+
+// handleLook handles command: look
+func (c *Commander) handleLook(command *Command, player *Player, game *Game) {
+	player.Look()
+}
+
+// handleEnter handles command: enter
+func (c *Commander) handleEnter(command *Command, player *Player, game *Game) {
+	player.client.Write("you enter %s", command.Args[0])
+}
+
+// handleHelp handles command: help
+func (c *Commander) handleHelp(command *Command, player *Player, game *Game) {
+	player.client.Write("commands: %v", c.CommandNames())
+}
+
+// handleSay handles command: say
+func (c *Commander) handleSay(command *Command, player *Player, game *Game) {
+	game.broadcast("[chat] %s: %s", player.ID, command.ArgString())
+}
+
+// handleStats handles command: stats
+func (c *Commander) handleStats(command *Command, player *Player, game *Game) {
+	player.client.Write(player.BuildPrompt())
+}
+
+// handleDebug handles command: debug
+func (c *Commander) handleDebug(command *Command, player *Player, game *Game) {
+	player.client.Write(player.Place.Look(player))
+	for _, p := range game.players {
+		player.client.Write(fmt.Sprintf("  %s %s", p.ID, p.BuildPrompt()))
 	}
 }
