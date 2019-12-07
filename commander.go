@@ -37,6 +37,9 @@ func (c *Commander) GetCommand(input string) (*Command, error) {
 		return nil, fmt.Errorf("missing input")
 	}
 	fields := strings.Fields(input)
+	if len(fields) == 0 {
+		return nil, nil
+	}
 	if command, ok := c.commands[fields[0]]; ok {
 		if len(fields) > 1 {
 			command.Args = fields[1:]

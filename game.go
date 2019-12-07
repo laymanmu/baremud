@@ -108,6 +108,9 @@ func (g *Game) handleClientInput() {
 			msg.Client.Write(err.Error())
 			continue
 		}
+		if cmd == nil {
+			continue
+		}
 		if cmd.Name == "exit" {
 			g.removePlayer(player)
 			msg.Client.Close()

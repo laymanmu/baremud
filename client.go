@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"strings"
 )
 
 // Client is a client
@@ -56,6 +57,9 @@ func (c *Client) handleInput() {
 			c.Close()
 			return
 		}
-		c.Input <- NewClientInputMessage(c, input)
+		input = strings.TrimSpace(input)
+		if len(input) > 0 {
+			c.Input <- NewClientInputMessage(c, input)
+		}
 	}
 }
